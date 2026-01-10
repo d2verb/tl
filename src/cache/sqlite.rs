@@ -12,8 +12,8 @@ use crate::translation::TranslationRequest;
 /// # Example
 ///
 /// ```no_run
-/// use tl::cache::CacheManager;
-/// use tl::translation::TranslationRequest;
+/// use tl_cli::cache::CacheManager;
+/// use tl_cli::translation::TranslationRequest;
 ///
 /// let cache = CacheManager::new().unwrap();
 /// let request = TranslationRequest {

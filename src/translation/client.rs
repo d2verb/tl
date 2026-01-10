@@ -91,7 +91,7 @@ struct Delta {
 /// # Example
 ///
 /// ```no_run
-/// use tl::translation::{TranslationClient, TranslationRequest};
+/// use tl_cli::translation::{TranslationClient, TranslationRequest};
 /// use futures_util::StreamExt;
 ///
 /// # async fn example() -> anyhow::Result<()> {

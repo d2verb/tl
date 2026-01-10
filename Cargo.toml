@@ -1,5 +1,5 @@
 [package]
-name = "tl"
+name = "tl-cli"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
@@ -9,6 +9,10 @@ homepage = "https://github.com/d2verb/tl"
 readme = "README.md"
 keywords = ["cli", "translation", "ai"]
 categories = ["command-line-utilities"]
+
+[[bin]]
+name = "tl"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

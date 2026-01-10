@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
 
-use tl::cli::commands::{chat, translate};
-use tl::cli::{Args, Command};
-use tl::config::ConfigManager;
+use tl_cli::cli::commands::{chat, translate};
+use tl_cli::cli::{Args, Command};
+use tl_cli::config::ConfigManager;
 
 const SUPPORTED_LANGUAGES: &[(&str, &str)] = &[
     ("af", "Afrikaans"),
