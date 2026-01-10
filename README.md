@@ -1,5 +1,7 @@
 # tl – streaming, cached translation CLI
 
+[![CI](https://github.com/d2verb/tl/actions/workflows/ci.yml/badge.svg)](https://github.com/d2verb/tl/actions/workflows/ci.yml)
+
 `tl` is a small CLI that streams translations coming from standard input or files through any OpenAI-compatible endpoint (local or remote). Configure multiple providers with their own endpoints, API keys, and models, then switch between them as needed.
 
 ## Install
