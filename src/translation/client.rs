@@ -2,9 +2,10 @@ use anyhow::{Context, Result};
 use futures_util::Stream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::pin::Pin;
 
-use super::prompt::build_system_prompt;
+use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt};
 
 #[derive(Debug, Clone)]
 pub struct TranslationRequest {
@@ -12,6 +13,32 @@ pub struct TranslationRequest {
     pub target_language: String,
     pub model: String,
     pub endpoint: String,
+}
+
+impl TranslationRequest {
+    /// Compute cache key for this request
+    pub fn cache_key(&self) -> String {
+        let prompt_hash = Self::prompt_hash();
+
+        let cache_input = serde_json::json!({
+            "source_text": self.source_text,
+            "target_language": self.target_language,
+            "model": self.model,
+            "endpoint": self.endpoint,
+            "prompt_hash": prompt_hash
+        });
+
+        let mut hasher = Sha256::new();
+        hasher.update(cache_input.to_string().as_bytes());
+        hex::encode(hasher.finalize())
+    }
+
+    /// Compute hash of the system prompt template
+    pub fn prompt_hash() -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(SYSTEM_PROMPT_TEMPLATE.as_bytes());
+        hex::encode(hasher.finalize())
+    }
 }
 
 #[derive(Debug, Serialize)]

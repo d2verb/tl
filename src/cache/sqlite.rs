@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 
-use crate::translation::{SYSTEM_PROMPT_TEMPLATE, TranslationRequest};
+use crate::translation::TranslationRequest;
 
 pub struct CacheManager {
     db_path: PathBuf,
@@ -62,7 +61,7 @@ impl CacheManager {
     }
 
     pub fn get(&self, request: &TranslationRequest) -> Result<Option<String>> {
-        let cache_key = Self::compute_cache_key(request);
+        let cache_key = request.cache_key();
         let conn = self.connect()?;
 
         let mut stmt =
@@ -81,8 +80,8 @@ impl CacheManager {
     }
 
     pub fn put(&self, request: &TranslationRequest, translated_text: &str) -> Result<()> {
-        let cache_key = Self::compute_cache_key(request);
-        let prompt_hash = Self::compute_prompt_hash();
+        let cache_key = request.cache_key();
+        let prompt_hash = TranslationRequest::prompt_hash();
         let conn = self.connect()?;
 
         conn.execute(
@@ -102,28 +101,6 @@ impl CacheManager {
         .context("Failed to insert translation into cache")?;
 
         Ok(())
-    }
-
-    fn compute_cache_key(request: &TranslationRequest) -> String {
-        let prompt_hash = Self::compute_prompt_hash();
-
-        let cache_input = serde_json::json!({
-            "source_text": request.source_text,
-            "target_language": request.target_language,
-            "model": request.model,
-            "endpoint": request.endpoint,
-            "prompt_hash": prompt_hash
-        });
-
-        let mut hasher = Sha256::new();
-        hasher.update(cache_input.to_string().as_bytes());
-        hex::encode(hasher.finalize())
-    }
-
-    fn compute_prompt_hash() -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(SYSTEM_PROMPT_TEMPLATE.as_bytes());
-        hex::encode(hasher.finalize())
     }
 }
 
