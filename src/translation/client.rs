@@ -1,12 +1,14 @@
 use anyhow::{Context, Result};
+use bytes::Bytes;
 use futures_util::Stream;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::pin::Pin;
 
 use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt};
+use super::sse_parser::sse_to_text_stream;
 
 /// A request to translate text.
 ///
@@ -55,7 +57,7 @@ impl TranslationRequest {
     }
 }
 
-// Use Cow to avoid cloning strings that are only borrowed for serialization
+/// Request body for the chat completions API.
 #[derive(Debug, Serialize)]
 struct ChatCompletionRequest<'a> {
     model: &'a str,
@@ -63,25 +65,30 @@ struct ChatCompletionRequest<'a> {
     stream: bool,
 }
 
+impl<'a> ChatCompletionRequest<'a> {
+    /// Builds a chat completion request for translation.
+    fn for_translation(model: &'a str, system_prompt: &'a str, source_text: &'a str) -> Self {
+        Self {
+            model,
+            messages: vec![
+                Message {
+                    role: "system",
+                    content: Cow::Borrowed(system_prompt),
+                },
+                Message {
+                    role: "user",
+                    content: Cow::Borrowed(source_text),
+                },
+            ],
+            stream: true,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 struct Message<'a> {
     role: &'static str,
     content: Cow<'a, str>,
-}
-
-#[derive(Debug, Deserialize)]
-struct StreamResponse {
-    choices: Vec<StreamChoice>,
-}
-
-#[derive(Debug, Deserialize)]
-struct StreamChoice {
-    delta: Delta,
-}
-
-#[derive(Debug, Deserialize)]
-struct Delta {
-    content: Option<String>,
 }
 
 /// Client for translating text using OpenAI-compatible APIs.
@@ -138,37 +145,47 @@ impl TranslationClient {
         &self,
         request: &TranslationRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
-        let url = format!(
-            "{}/v1/chat/completions",
-            self.endpoint.trim_end_matches('/')
-        );
+        let byte_stream = self
+            .send_chat_completion(
+                &request.model,
+                &request.target_language,
+                &request.source_text,
+            )
+            .await?;
 
-        // Build system prompt once (returns owned String)
-        let system_prompt = build_system_prompt(&request.target_language);
+        Ok(Box::pin(sse_to_text_stream(byte_stream)))
+    }
 
-        let chat_request = ChatCompletionRequest {
-            model: &request.model,
-            messages: vec![
-                Message {
-                    role: "system",
-                    content: Cow::Owned(system_prompt),
-                },
-                Message {
-                    role: "user",
-                    content: Cow::Borrowed(&request.source_text),
-                },
-            ],
-            stream: true,
-        };
+    /// Sends a chat completion request and returns the raw byte stream.
+    async fn send_chat_completion(
+        &self,
+        model: &str,
+        target_language: &str,
+        source_text: &str,
+    ) -> Result<impl Stream<Item = reqwest::Result<Bytes>> + Send + 'static> {
+        let url = self.build_url();
+        let system_prompt = build_system_prompt(target_language);
+        let chat_request =
+            ChatCompletionRequest::for_translation(model, &system_prompt, source_text);
 
-        let mut http_request = self.client.post(&url).json(&chat_request);
+        let response = self.send_request(&url, &chat_request).await?;
 
-        // Add Authorization header if API key is present
+        Ok(response.bytes_stream())
+    }
+
+    /// Sends an HTTP POST request with optional authorization.
+    async fn send_request<T: Serialize + Sync>(
+        &self,
+        url: &str,
+        body: &T,
+    ) -> Result<reqwest::Response> {
+        let mut request = self.client.post(url).json(body);
+
         if let Some(api_key) = &self.api_key {
-            http_request = http_request.header("Authorization", format!("Bearer {api_key}"));
+            request = request.header("Authorization", format!("Bearer {api_key}"));
         }
 
-        let response = http_request
+        let response = request
             .send()
             .await
             .with_context(|| format!("Failed to connect to API endpoint: {url}"))?;
@@ -179,60 +196,14 @@ impl TranslationClient {
             anyhow::bail!("API request failed with status {status}: {body}");
         }
 
-        let mut stream = response.bytes_stream();
-
-        let mapped_stream = async_stream::stream! {
-            use futures_util::StreamExt;
-            let mut buffer = String::new();
-
-            while let Some(chunk_result) = stream.next().await {
-                let chunk = match chunk_result {
-                    Ok(c) => c,
-                    Err(e) => {
-                        yield Err(anyhow::anyhow!("Stream error: {e}"));
-                        continue;
-                    }
-                };
-
-                buffer.push_str(&String::from_utf8_lossy(&chunk));
-
-                while let Some(line_end) = buffer.find('\n') {
-                    let line: String = buffer.drain(..=line_end).collect();
-                    let line = line.trim();
-
-                    if line.is_empty() {
-                        continue;
-                    }
-                    if line == "data: [DONE]" {
-                        return;
-                    }
-
-                    if let Some(content) = parse_sse_line(line) {
-                        yield Ok(content);
-                    }
-                }
-            }
-        };
-
-        Ok(Box::pin(mapped_stream))
+        Ok(response)
     }
-}
 
-fn parse_sse_line(line: &str) -> Option<String> {
-    let json_str = line.strip_prefix("data: ")?;
-
-    let response = serde_json::from_str::<StreamResponse>(json_str).ok()?;
-
-    let content: String = response
-        .choices
-        .into_iter()
-        .filter_map(|c| c.delta.content)
-        .filter(|c| !c.is_empty())
-        .collect();
-
-    if content.is_empty() {
-        None
-    } else {
-        Some(content)
+    /// Builds the chat completions API URL.
+    fn build_url(&self) -> String {
+        format!(
+            "{}/v1/chat/completions",
+            self.endpoint.trim_end_matches('/')
+        )
     }
 }
