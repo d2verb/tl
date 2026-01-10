@@ -4,6 +4,7 @@
 //! preferring XDG Base Directory Specification conventions over
 //! OS-specific locations.
 
+use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 /// Returns the configuration directory for tl.
@@ -12,14 +13,14 @@ use std::path::PathBuf;
 /// 1. `$XDG_CONFIG_HOME/tl` if `XDG_CONFIG_HOME` is set
 /// 2. `~/.config/tl` otherwise
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if the home directory cannot be determined.
-pub fn config_dir() -> PathBuf {
-    std::env::var("XDG_CONFIG_HOME").map_or_else(
-        |_| home_dir().join(".config").join("tl"),
-        |xdg| PathBuf::from(xdg).join("tl"),
-    )
+/// Returns an error if the home directory cannot be determined.
+pub fn config_dir() -> Result<PathBuf> {
+    match std::env::var("XDG_CONFIG_HOME") {
+        Ok(xdg) => Ok(PathBuf::from(xdg).join("tl")),
+        Err(_) => Ok(home_dir()?.join(".config").join("tl")),
+    }
 }
 
 /// Returns the cache directory for tl.
@@ -28,24 +29,23 @@ pub fn config_dir() -> PathBuf {
 /// 1. `$XDG_CACHE_HOME/tl` if `XDG_CACHE_HOME` is set
 /// 2. `~/.cache/tl` otherwise
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if the home directory cannot be determined.
-pub fn cache_dir() -> PathBuf {
-    std::env::var("XDG_CACHE_HOME").map_or_else(
-        |_| home_dir().join(".cache").join("tl"),
-        |xdg| PathBuf::from(xdg).join("tl"),
-    )
+/// Returns an error if the home directory cannot be determined.
+pub fn cache_dir() -> Result<PathBuf> {
+    match std::env::var("XDG_CACHE_HOME") {
+        Ok(xdg) => Ok(PathBuf::from(xdg).join("tl")),
+        Err(_) => Ok(home_dir()?.join(".cache").join("tl")),
+    }
 }
 
 /// Returns the user's home directory.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if the home directory cannot be determined.
-#[allow(clippy::expect_used)]
-fn home_dir() -> PathBuf {
-    dirs::home_dir().expect("Failed to determine home directory")
+/// Returns an error if the home directory cannot be determined.
+fn home_dir() -> Result<PathBuf> {
+    dirs::home_dir().context("Failed to determine home directory")
 }
 
 #[cfg(test)]
@@ -59,7 +59,7 @@ mod tests {
         let original = std::env::var("XDG_CONFIG_HOME").ok();
         unsafe { std::env::remove_var("XDG_CONFIG_HOME") };
 
-        let dir = config_dir();
+        let dir = config_dir().unwrap();
         assert!(dir.ends_with(".config/tl"));
 
         // Restore
@@ -73,7 +73,7 @@ mod tests {
         let original = std::env::var("XDG_CONFIG_HOME").ok();
         unsafe { std::env::set_var("XDG_CONFIG_HOME", "/custom/config") };
 
-        let dir = config_dir();
+        let dir = config_dir().unwrap();
         assert_eq!(dir, PathBuf::from("/custom/config/tl"));
 
         // Restore
@@ -90,7 +90,7 @@ mod tests {
         let original = std::env::var("XDG_CACHE_HOME").ok();
         unsafe { std::env::remove_var("XDG_CACHE_HOME") };
 
-        let dir = cache_dir();
+        let dir = cache_dir().unwrap();
         assert!(dir.ends_with(".cache/tl"));
 
         // Restore
@@ -104,7 +104,7 @@ mod tests {
         let original = std::env::var("XDG_CACHE_HOME").ok();
         unsafe { std::env::set_var("XDG_CACHE_HOME", "/custom/cache") };
 
-        let dir = cache_dir();
+        let dir = cache_dir().unwrap();
         assert_eq!(dir, PathBuf::from("/custom/cache/tl"));
 
         // Restore

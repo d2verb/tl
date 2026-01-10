@@ -39,7 +39,7 @@ impl CacheManager {
     /// Initializes the `SQLite` database at `$XDG_CACHE_HOME/tl/translations.db`
     /// or `~/.cache/tl/translations.db` if `XDG_CACHE_HOME` is not set.
     pub fn new() -> Result<Self> {
-        let cache_dir = paths::cache_dir();
+        let cache_dir = paths::cache_dir()?;
 
         std::fs::create_dir_all(&cache_dir).with_context(|| {
             format!("Failed to create cache directory: {}", cache_dir.display())

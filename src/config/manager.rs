@@ -93,7 +93,7 @@ impl ConfigManager {
     /// or `~/.config/tl/config.toml` if `XDG_CONFIG_HOME` is not set.
     pub fn new() -> Result<Self> {
         Ok(Self {
-            config_path: paths::config_dir().join("config.toml"),
+            config_path: paths::config_dir()?.join("config.toml"),
         })
     }
 
