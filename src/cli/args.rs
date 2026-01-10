@@ -12,9 +12,9 @@ pub struct Args {
     #[arg(short = 't', long = "to")]
     pub to: Option<String>,
 
-    /// API endpoint URL
-    #[arg(short = 'e', long)]
-    pub endpoint: Option<String>,
+    /// Provider name (e.g., ollama, openrouter)
+    #[arg(short = 'p', long)]
+    pub provider: Option<String>,
 
     /// Model name
     #[arg(short = 'm', long)]
@@ -24,29 +24,32 @@ pub struct Args {
     #[arg(short = 'n', long)]
     pub no_cache: bool,
 
+    /// Overwrite the input file with the translated content
+    #[arg(short = 'w', long)]
+    pub write: bool,
+
     #[command(subcommand)]
     pub command: Option<Command>,
 }
 
 #[derive(Subcommand, Debug)]
 pub enum Command {
-    /// Configure tl settings
-    Configure {
-        /// Show current configuration
-        #[arg(long)]
-        show: bool,
-    },
     /// List supported language codes
     Languages,
+    /// List configured providers and their models
+    Providers {
+        /// Show models for a specific provider
+        provider: Option<String>,
+    },
     /// Interactive chat mode for translation
     Chat {
         /// Target language code (ISO 639-1, e.g., ja, en, zh)
         #[arg(short = 't', long = "to")]
         to: Option<String>,
 
-        /// API endpoint URL
-        #[arg(short = 'e', long)]
-        endpoint: Option<String>,
+        /// Provider name (e.g., ollama, openrouter)
+        #[arg(short = 'p', long)]
+        provider: Option<String>,
 
         /// Model name
         #[arg(short = 'm', long)]

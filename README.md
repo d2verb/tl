@@ -1,6 +1,6 @@
 # tl – streaming, cached translation CLI
 
-`tl` is a small CLI that streams translations coming from standard input or files through any OpenAI-compatible endpoint (local or remote). Configure a default target language, endpoint, and model once, then override per-command as needed.
+`tl` is a small CLI that streams translations coming from standard input or files through any OpenAI-compatible endpoint (local or remote). Configure multiple providers with their own endpoints, API keys, and models, then switch between them as needed.
 
 ## Install
 
@@ -14,24 +14,52 @@ cargo install --path .
 tl ./notes.md                       # translate a file
 cat report.md | tl                   # translate stdin
 tl --to ja ./notes.md                # override target language
-tl --endpoint http://localhost:11434 ./notes.md  # temporary endpoint
+tl --provider openrouter ./notes.md  # use a specific provider
+tl --model gpt-4o ./notes.md         # use a specific model
 tl --no-cache ./notes.md             # bypass cache
+tl -w ./notes.md                     # overwrite file with translation
 ```
 
 `tl` caches each translation (keyed on the input, language, model, endpoint, and prompt) so rerunning the same source is fast and cheap. Streaming responses keep your terminal responsive, and a spinner on stderr signals when work is in progress.
 
 ## Configuration
 
-Settings live in `~/.config/tl/config.toml`. Run `tl configure` to set your defaults interactively (it pre-fills existing values) and `tl configure --show` to inspect them.
+Settings live in `~/.config/tl/config.toml`.
 
 ```toml
 [tl]
+provider = "ollama"
+model = "gemma3:12b"
 to = "ja"
+
+[providers.ollama]
 endpoint = "http://localhost:11434"
-model = "gpt-oss:20b"
+models = ["gemma3:12b", "llama3.2"]
+
+[providers.openrouter]
+endpoint = "https://openrouter.ai/api"
+api_key_env = "OPENROUTER_API_KEY"
+models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o"]
 ```
 
-CLI options always supersede the config file. If a required value is missing, `tl` prints a clear error and points you toward `tl configure` or the corresponding flag.
+### Provider Configuration
+
+Each provider has:
+- `endpoint` (required) – the OpenAI-compatible API endpoint
+- `api_key_env` (optional) – environment variable name containing the API key
+- `api_key` (optional) – API key stored directly in config (not recommended)
+- `models` (optional) – list of available models for this provider
+
+CLI options always supersede the config file.
+
+### Managing Providers
+
+Use `tl providers` to list configured providers:
+
+```sh
+tl providers                        # list all providers
+tl providers ollama                 # show details for a specific provider
+```
 
 ## Chat Mode
 
@@ -40,12 +68,15 @@ For interactive translation sessions, use `tl chat`:
 ```sh
 tl chat                              # start chat mode with config defaults
 tl chat --to ja                      # override target language
+tl chat --provider openrouter        # use a specific provider
+tl chat --model gpt-4o               # use a specific model
 ```
 
-In chat mode, type text to translate and press Enter. Use slash commands to manage the session:
+Type text and press Enter to translate. Translations stream in real-time.
+
+### Slash Commands
 
 - `/config` – show current configuration
-- `/set <key> <value>` – change a setting (e.g., `/set to en`)
 - `/help` – list available commands
 - `/quit` – exit chat mode
 
@@ -53,4 +84,5 @@ In chat mode, type text to translate and press Enter. Use slash commands to mana
 
 - Use `tl languages` to see the supported ISO 639-1 codes before passing `--to`.
 - Streaming is cancel-safe: pressing `Ctrl+C` while streaming aborts without polluting the cache.
-- No cache hits? Run with `--no-cache` or `tl --endpoint …` to force a fresh request.
+- No cache hits? Run with `--no-cache` to force a fresh request.
+- API key issues? Set the environment variable specified in `api_key_env` for your provider.

@@ -22,11 +22,13 @@ impl Spinner {
         Self { progress_bar }
     }
 
-    pub const fn start(&self) {
-        // Spinner is already running from new()
-    }
-
     pub fn stop(&self) {
+        self.progress_bar.finish_and_clear();
+    }
+}
+
+impl Drop for Spinner {
+    fn drop(&mut self) {
         self.progress_bar.finish_and_clear();
     }
 }

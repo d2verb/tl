@@ -14,20 +14,14 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 sha2 = "0.10"
 hex = "0.4"
 indicatif = "0.17"
-rustyline = "15"
+inquire = "0.9"
 dirs = "5"
-thiserror = "2"
 anyhow = "1"
-futures = "0.3"
-tokio-stream = "0.1"
 futures-util = "0.3"
 async-stream = "0.3"
 
 [dev-dependencies]
 tempfile = "3"
-mockito = "1"
-assert_cmd = "2"
-predicates = "3"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }

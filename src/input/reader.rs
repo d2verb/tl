@@ -61,7 +61,7 @@ impl InputReader {
 mod tests {
     use super::*;
     use std::io::Write;
-    use tempfile::NamedTempFile;
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     fn test_read_file() {
@@ -81,5 +81,61 @@ mod tests {
     #[test]
     fn test_max_input_size_constant() {
         assert_eq!(MAX_INPUT_SIZE, 1024 * 1024);
+    }
+
+    #[test]
+    fn test_read_file_unicode() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let content = "こんにちは世界！🌍\n日本語テスト";
+        write!(temp_file, "{}", content).unwrap();
+
+        let result = InputReader::read(Some(temp_file.path().to_str().unwrap())).unwrap();
+        assert_eq!(result, content);
+    }
+
+    #[test]
+    fn test_read_empty_file() {
+        let temp_file = NamedTempFile::new().unwrap();
+
+        let content = InputReader::read(Some(temp_file.path().to_str().unwrap())).unwrap();
+        assert!(content.is_empty());
+    }
+
+    #[test]
+    fn test_read_file_exceeds_max_size() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("large_file.txt");
+
+        // Create a file larger than MAX_INPUT_SIZE (1MB + 1 byte)
+        let large_content = "x".repeat(MAX_INPUT_SIZE + 1);
+        fs::write(&file_path, &large_content).unwrap();
+
+        let result = InputReader::read(Some(file_path.to_str().unwrap()));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("exceeds maximum"));
+    }
+
+    #[test]
+    fn test_read_file_at_max_size() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("max_file.txt");
+
+        // Create a file exactly at MAX_INPUT_SIZE
+        let content = "x".repeat(MAX_INPUT_SIZE);
+        fs::write(&file_path, &content).unwrap();
+
+        let result = InputReader::read(Some(file_path.to_str().unwrap()));
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), MAX_INPUT_SIZE);
+    }
+
+    #[test]
+    fn test_read_file_multiline() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        let content = "Line 1\nLine 2\nLine 3";
+        write!(temp_file, "{}", content).unwrap();
+
+        let result = InputReader::read(Some(temp_file.path().to_str().unwrap())).unwrap();
+        assert_eq!(result, content);
     }
 }

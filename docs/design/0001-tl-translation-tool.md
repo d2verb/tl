@@ -1,43 +1,45 @@
 # Mini Design Doc: tl - AI Translation CLI Tool
 
-*   **Author:** d2verb
-*   **Status:** Draft
-*   **Date:** 2026-01-08
+* **Author:** d2verb
+* **Status:** Implemented
+* **Date:** 2026-01-08
 
 ## 1. Abstract
 
-`tl` は、OpenAI互換APIを利用してファイルや標準入力のテキストを翻訳するCLIツールである。ストリーミング出力とキャッシュ機能により、ユーザー体験を損なわずに効率的な翻訳を提供する。
+`tl` is a CLI tool that translates text from files or standard input using an OpenAI‑compatible API. Streaming output and caching provide efficient translation without compromising the user experience.
 
 ## 2. Goals & Non-Goals
 
 ### Goals
-*   ファイルまたは標準入力からテキストを読み取り、指定した言語に翻訳する
-*   OpenAI互換API（ローカルLLMサーバー等）を利用した翻訳
-*   ストリーミング出力による低レイテンシなUX
-*   翻訳結果のキャッシュによる再翻訳の高速化
-*   `tl configure` による対話的な設定管理
+
+* Read text from a file or standard input and translate it into the specified language
+* Translation via an OpenAI‑compatible API (including local LLM servers)
+* Low‑latency UX through streaming output
+* Faster re‑translation via caching of translation results
 
 ### Non-Goals
-*   翻訳APIの自前実装（外部APIに依存）
-*   複数ファイルの一括翻訳（v1では単一ファイル/標準入力のみ）
-*   翻訳履歴の管理UI
-*   オフライン翻訳
+
+* Implementing a custom translation API (depends on external APIs)
+* Bulk translation of multiple files (v1 supports only a single file/stdin)
+* UI for managing translation history
+* Offline translation
 
 ## 3. Context & Problem Statement
 
-テキストファイルを手軽に翻訳したい場面は多いが、既存のCLIツールは以下の課題がある:
-*   商用API専用で、ローカルLLMに対応していない
-*   ストリーミング出力に対応しておらず、長文の翻訳時に長時間ブロックされる
-*   キャッシュ機能がなく、同じ文章を何度も翻訳するとコストがかかる
+There are many situations where you want to quickly translate a text file, but existing CLI tools have the following issues:
 
-本ツールは、OpenAI互換APIをサポートすることでローカルLLMを含む様々なバックエンドに対応し、ストリーミング出力とキャッシュで快適な翻訳体験を提供する。
+* They are dedicated to commercial APIs and do not support local LLMs
+* They do not support streaming output, causing long blocks when translating long texts
+* They lack a cache, incurring cost when the same sentence is translated repeatedly
+
+This tool supports OpenAI‑compatible APIs, enabling various back‑ends (including local LLMs), and provides a comfortable translation experience through streaming output and caching.
 
 ## 4. Proposed Design
 
 ### 4.1 System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────��─────────┐
 │                           tl CLI                                │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
@@ -63,70 +65,68 @@
 ### 4.2 CLI Interface
 
 ```bash
-# 基本的な使い方
-tl <file>                    # ファイルを翻訳（デフォルト言語へ）
-cat <file> | tl              # 標準入力から翻訳
-tl -t <lang> <file>          # 翻訳先言語を指定
-tl --to <lang> <file>        # 同上（長いオプション）
+# Basic usage
+tl <file>                    # Translate a file (to the default language)
+cat <file> | tl              # Translate from stdin
+tl -t <lang> <file>          # Specify target language
+tl --to <lang> <file>        # Same as above (long option)
 
-# 設定管理
-tl configure                 # 対話的に設定を編集
-tl configure show            # 現在の設定を表示
-
-# その他オプション
-tl --help                    # ヘルプ表示
-tl --version                 # バージョン表示
-tl --list-languages          # サポートする言語コード一覧を表示
-tl --no-cache <file>         # キャッシュを使用しない
-tl --endpoint <url> <file>   # APIエンドポイントを一時的に指定
-tl --model <name> <file>     # モデルを一時的に指定
+# Other options
+tl --help                    # Show help
+tl --version                 # Show version
+tl languages                 # List supported language codes
+tl --no-cache <file>         # Do not use cache
+tl --provider <name> <file>  # Specify provider
+tl --model <name> <file>     # Specify model
 ```
 
 ### 4.3 Configuration
 
-**ファイルパス:** `~/.config/tl/config.toml`
+**File path:** `~/.config/tl/config.toml`
 
 ```toml
 [tl]
-to = "ja"                              # 翻訳先言語（必須）
-endpoint = "http://localhost:11434"    # APIエンドポイント（必須）
-model = "gpt-oss:20b"                  # モデル名（必須）
+to = "ja"                              # Target language (required)
+endpoint = "http://localhost:11434"    # API endpoint (required)
+model = "gpt-oss:20b"                  # Model name (required)
 ```
 
-**設定の優先順位:**
-1. CLIオプション（最優先）
-2. 設定ファイル
-3. エラー（必須項目が未設定の場合）
+**Configuration precedence:**
 
-**必須設定が不足している場合のエラー:**
+1. CLI options (highest priority)
+2. Configuration file
+3. Error (if required items are missing)
+
+**Error when required configuration is missing:**
+
 ```
 Error: Missing required configuration: 'endpoint'
 
 Please provide it via:
-  - CLI option: tl --endpoint <url> <file>
-  - Config file: Run 'tl configure' to set up configuration
+  - CLI option: tl --endpoint <url>
+  - Config file: ~/.config/tl/config.toml
 ```
 
 ### 4.4 Caching Strategy
 
-**言語コード:**
+**Language codes:**
 
-言語コードはISO 639-1形式を強制する（`ja`, `en`, `zh`, `ko`, `fr`, `de`, `es` 等）。
+Language codes are forced to ISO 639‑1 format (`ja`, `en`, `zh`, `ko`, `fr`, `de`, `es`, etc.).
 
-*   正規化ロジックが不要になりシンプル
-*   キャッシュキーの一貫性が保証される
-*   無効なコードはバリデーションエラーとして即座に拒否
+* No need for normalization logic, keeping it simple
+* Guarantees consistency of cache keys
+* Invalid codes are rejected instantly as validation errors
 
 ```
 Error: Invalid language code: 'Japanese'
 
 Valid language codes (ISO 639-1): ja, en, zh, ko, fr, de, es, ...
-Run 'tl --list-languages' to see all supported codes.
+Run 'tl languages' to see all supported codes.
 ```
 
-**キャッシュキー生成:**
+**Cache key generation:**
 
-単純な文字列連結は衝突の可能性があるため、JSON形式でシリアライズしてからハッシュ化する。
+A simple string concatenation could cause collisions, so we serialize to JSON first and then hash.
 
 ```rust
 let cache_input = serde_json::json!({
@@ -139,13 +139,14 @@ let cache_input = serde_json::json!({
 let cache_key = SHA256(cache_input.to_string());
 ```
 
-*   JSON化により、フィールド間の境界が明確になり衝突を防止
-*   `endpoint`: 同じモデル名でも異なるサーバー（本番 vs ローカル等）での翻訳結果を区別
-*   `prompt_hash`: システムプロンプトテンプレートのSHA256ハッシュ。プロンプト変更時に自動でキャッシュ無効化
+* JSON makes field boundaries explicit and prevents collisions
+* `endpoint`: distinguishes translations from the same model on different servers (production vs. local, etc.)
+* `prompt_hash`: SHA256 of the system‑prompt template; changing the prompt automatically invalidates the cache
 
-**キャッシュストレージ:** `~/.cache/tl/translations.db` (SQLite)
+**Cache storage:** `~/.cache/tl/translations.db` (SQLite)
 
-**スキーマ:**
+**Schema:**
+
 ```sql
 CREATE TABLE translations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,36 +164,37 @@ CREATE TABLE translations (
 CREATE INDEX idx_cache_key ON translations(cache_key);
 ```
 
-**ストリーミング中のCtrl+C対応:**
-*   ストリーミング中はメモリ上にバッファリング
-*   完了時のみDBに書き込み
-*   Ctrl+Cで中断された場合はキャッシュに保存しない（不完全な翻訳を防ぐ）
+**Ctrl+C handling during streaming:**
+
+* Buffer in memory while streaming
+* Write to DB only upon completion
+* If interrupted with Ctrl+C, do not store in cache (prevents incomplete translations)
 
 ### 4.5 Input & Output Processing
 
-**入力処理:**
+**Input handling:**
 
-入力は全て読み込んでから翻訳を開始する（ストリーミング入力は行わない）。
+All input is read fully before translation starts (no streaming input).
 
 ```
 ┌─────────────────┐          ┌─────────────────┐
 │  File           │──read───▶│                 │
 └─────────────────┘          │  Complete Text  │───▶ Translation
 ┌─────────────────┐          │  (in memory)    │
-│  Stdin (EOF待ち) │──read───▶│                 │
+│  Stdin (EOF wait) │──read───▶│                 │
 └─────────────────┘          └─────────────────┘
 ```
 
-*   ファイル入力: ファイル全体を読み込む
-*   標準入力: EOFまで全て読み込む（`cat file | tl`, `curl ... | tl` 等との連携用）
-*   入力が揃ってから翻訳を開始することで、キャッシュキーの計算が確定する
+* File input: read the entire file
+* Stdin: read until EOF (supports `cat file | tl`, `curl … | tl`, etc.)
+* Translation starts only after input is gathered, fixing the cache‑key calculation
 
-**最大入力サイズ:**
+**Maximum input size:**
 
-OOMを防ぐため、入力サイズに上限を設ける。
+To prevent OOM, an input‑size limit is enforced.
 
-*   最大入力サイズ: **1MB**（デフォルト）
-*   超過時はエラーで終了
+* Max input size: **1 MB** (default)
+* Exceeding the limit results in an error
 
 ```
 Error: Input size (2.5 MB) exceeds maximum allowed size (1 MB).
@@ -200,12 +202,12 @@ Error: Input size (2.5 MB) exceeds maximum allowed size (1 MB).
 Consider splitting the file into smaller parts.
 ```
 
-*   1MBあれば一般的なドキュメント翻訳には十分
-*   将来的に `--max-size` オプションで上限を変更可能にすることも検討
+* 1 MB is sufficient for most document translations
+* Future option `--max-size` could allow changing the limit
 
-**出力処理（ストリーミング）:**
+**Output processing (streaming):**
 
-APIからのレスポンスはストリーミングで処理し、翻訳結果をリアルタイム表示する。
+The API response is handled as a stream, displaying translated text in real time.
 
 ```
 ┌──────────┐     ┌──────────────┐     ┌──────────────┐
@@ -226,80 +228,77 @@ APIからのレスポンスはストリーミングで処理し、翻訳結果�
                  └──────────────┘
 ```
 
-*   長文翻訳でもユーザーを待たせない
-*   出力中はメモリ上にバッファリングし、完了時にキャッシュへ書き込み
+* Users are not forced to wait for the whole translation
+* While outputting, data is buffered in memory and written to the cache only after completion
 
-**UI表示:**
-*   翻訳開始時: スピナー表示（stderr）
-*   ストリーミング中: リアルタイムでテキスト出力（stdout）
-*   完了時: スピナー停止
+**UI display:**
+
+* At translation start: spinner shown (stderr)
+* While streaming: real‑time text output (stdout)
+* At completion: spinner stops
 
 ```
 ⠋ Translating...
-[翻訳されたテキストがストリーミングで表示]
+[Translated text streams here]
 ```
 
 ### 4.6 Module Structure
 
 ```
 src/
-├── main.rs              # エントリーポイント、CLIパーサー
-├── lib.rs               # ライブラリルート
+├── main.rs              # Entry point, CLI parser
+├── lib.rs               # Library root
 ├── cli/
 │   ├── mod.rs
-│   ├── args.rs          # CLI引数定義（clap）
+│   ├── args.rs          # CLI argument definitions (clap)
 │   └── commands/
 │       ├── mod.rs
-│       ├── translate.rs # 翻訳コマンド
-│       └── configure.rs # 設定コマンド
+│       └── translate.rs # Translate command
 ├── config/
 │   ├── mod.rs
-│   └── manager.rs       # 設定ファイルの読み書き
+│   └── manager.rs       # Read/write config file
 ├── translation/
 │   ├── mod.rs
-│   ├── client.rs        # OpenAI互換APIクライアント
-│   └── prompt.rs        # 翻訳プロンプト生成
+│   ├── client.rs        # OpenAI‑compatible API client
+│   └── prompt.rs        # Translation prompt generation
 ├── cache/
 │   ├── mod.rs
-│   └── sqlite.rs        # SQLiteキャッシュ実装
+│   └── sqlite.rs        # SQLite cache implementation
 ├── input/
 │   ├── mod.rs
-│   └── reader.rs        # ファイル/標準入力の読み取り
+│   └── reader.rs        # File/stdin reading
 └── ui/
     ├── mod.rs
-    └── spinner.rs       # スピナー表示
+    └── spinner.rs       # Spinner display
 ```
 
 ### 4.7 Dependencies (Cargo.toml)
 
 ```toml
 [dependencies]
-clap = { version = "4", features = ["derive"] }       # CLI引数パーサー
-tokio = { version = "1", features = ["full"] }        # 非同期ランタイム
-reqwest = { version = "0.12", features = ["stream"] } # HTTPクライアント
-serde = { version = "1", features = ["derive"] }      # シリアライズ
-serde_json = "1"                                      # JSON処理
-toml = "0.8"                                          # TOML設定ファイル
-rusqlite = { version = "0.32", features = ["bundled"] } # SQLiteキャッシュ
-sha2 = "0.10"                                         # ハッシュ計算
-hex = "0.4"                                           # 16進数エンコード
-indicatif = "0.17"                                    # スピナー/プログレス表示
-dialoguer = "0.11"                                    # 対話的入力
-dirs = "5"                                            # プラットフォーム固有ディレクトリ
-thiserror = "2"                                       # エラー定義
-anyhow = "1"                                          # エラーハンドリング
-futures = "0.3"                                       # ストリーム処理
+clap = { version = "4", features = ["derive"] }       # CLI argument parser
+tokio = { version = "1", features = ["full"] }        # Async runtime
+reqwest = { version = "0.12", features = ["stream", "json"] } # HTTP client
+serde = { version = "1", features = ["derive"] }      # Serialization
+serde_json = "1"                                      # JSON handling
+toml = "0.8"                                          # TOML config files
+rusqlite = { version = "0.32", features = ["bundled"] } # SQLite cache
+sha2 = "0.10"                                         # Hash calculation
+hex = "0.4"                                           # Hex encoding
+indicatif = "0.17"                                    # Spinner / progress display
+inquire = "0.9"                                       # Interactive prompts
+dirs = "5"                                            # Platform‑specific directories
+anyhow = "1"                                          # Error handling
+futures-util = "0.3"                                  # Stream processing
+async-stream = "0.3"                                  # Async stream generation
 
 [dev-dependencies]
-tempfile = "3"                                        # テスト用一時ファイル
-mockito = "1"                                         # HTTPモック
-assert_cmd = "2"                                      # CLIテスト
-predicates = "3"                                      # アサーション
+tempfile = "3"                                        # Temporary files for tests
 ```
 
 ### 4.8 API Request Format
 
-OpenAI互換APIへのリクエスト:
+Request to an OpenAI‑compatible API:
 
 ```json
 POST {endpoint}/v1/chat/completions
@@ -321,104 +320,87 @@ Content-Type: application/json
 }
 ```
 
-*   `{model}`: 設定またはCLIオプションで指定されたモデル名
-*   `{target_language}`: 設定またはCLIオプション (`--to`) で指定された翻訳先言語
-*   `{source_text}`: 翻訳対象のテキスト
-
-### 4.9 Configure Command Flow
-
-```
-$ tl configure
-
-tl Configuration
-────────────────
-Target language (to) [ja]: en
-API endpoint [http://localhost:11434]:
-Model name [gpt-oss:20b]: llama3.2
-
-Configuration saved to ~/.config/tl/config.toml
-```
-
-*   既存の設定値がある場合はデフォルト値として `[...]` 内に表示
-*   Enterのみで既存値を維持
-*   新しい値を入力すると上書き
+* `{model}`: model name from configuration or CLI (`--model`)
+* `{target_language}`: target language from configuration or CLI (`--to`)
+* `{source_text}`: text to be translated
 
 ## 5. Implementation Plan
 
-1.  **Phase 1: 基盤構築**
-    *   プロジェクト構造のセットアップ
-    *   CLI引数パーサーの実装（clap）
-    *   設定ファイルの読み書き実装
-    *   `tl configure` / `tl configure show` の実装
+1. **Phase 1: Foundations**
+    * Set up project structure
+    * Implement CLI argument parser (clap)
+    * Implement config file read/write
 
-2.  **Phase 2: 翻訳機能**
-    *   入力ハンドラー（ファイル/標準入力）の実装
-    *   OpenAI互換APIクライアントの実装
-    *   ストリーミングレスポンス処理
-    *   スピナーUI実装
+2. **Phase 2: Translation core**
+    * Implement input handler (file/stdin)
+    * Implement OpenAI‑compatible API client
+    * Implement streaming response handling
+    * Implement spinner UI
 
-3.  **Phase 3: キャッシュ機能**
-    *   SQLiteキャッシュの実装
-    *   キャッシュヒット/ミス処理
-    *   `--no-cache` オプション対応
+3. **Phase 3: Caching**
+    * Implement SQLite cache
+    * Handle cache hits/misses
+    * Support `--no-cache` option
 
-4.  **Phase 4: 品質向上**
-    *   エラーハンドリングの改善
-    *   ユニットテスト・統合テストの追加
-    *   ドキュメント整備
+4. **Phase 4: Quality improvements**
+    * Enhance error handling
+    * Add unit and integration tests
+    * Polish documentation
 
 ## 6. Risks & Mitigations
 
 | Risk | Impact | Mitigation Strategy |
 | :--- | :--- | :--- |
-| APIレスポンス形式の差異 | High | OpenAI互換の標準形式に準拠。主要なLLMサーバー（Ollama, vLLM等）でテスト |
-| 大きなファイルでのメモリ使用量 | Medium | チャンク分割翻訳は将来の拡張として検討。v1では警告表示のみ |
-| ストリーミング中断時のデータ不整合 | Low | 完了時のみキャッシュに書き込む設計で対応済み |
-| SQLiteの並行アクセス | Low | 単一プロセスでの使用を想定。WALモードで軽減 |
+| Differences in API response formats | High | Conform to the OpenAI standard format; test with major LLM servers (Ollama, vLLM, etc.) |
+| Memory usage on large files | Medium | Chunked translation is considered for future extensions; v1 only shows a warning |
+| Data inconsistency when streaming is aborted | Low | Cache write occurs only on successful completion |
+| Concurrent SQLite access | Low | Assume single‑process usage; enable WAL mode to reduce contention |
 
 ## 7. Testing & Verification
 
 ### Unit Tests
-*   設定ファイルのパース/シリアライズ
-*   キャッシュキー生成ロジック
-*   CLI引数のパース
-*   入力ソース判定（ファイル vs 標準入力）
+
+* Config file parsing/serialization
+* Cache key generation logic
+* CLI argument parsing
+* Input source detection (file vs. stdin)
 
 ### Integration Tests
-*   `tl configure` の対話的フロー（モック入力）
-*   翻訳APIとの通信（モックサーバー）
-*   キャッシュヒット時の動作
-*   エラーケース（ファイル不存在、API接続失敗等）
+
+* Communication with translation API (mock server)
+* Behavior on cache hit
+* Error cases (missing file, API connection failure, etc.)
 
 ### Success Metrics
-*   テストカバレッジ 85%以上
-*   ストリーミング開始までの初期レイテンシ < 500ms（ネットワーク除く）
-*   キャッシュヒット時のレスポンス < 50ms
+
+* Test coverage ≥ 85 %
+* Initial latency before streaming starts < 500 ms (excluding network)
+* Response time on cache hit < 50 ms
 
 ## 8. Alternatives Considered
 
-### キャッシュストレージ
+### Cache storage
 
-| 選択肢 | メリット | デメリット | 決定 |
+| Option | Pros | Cons | Decision |
 | :--- | :--- | :--- | :--- |
-| SQLite | 堅牢、クエリ可能、単一ファイル | 依存追加 | **採用** |
-| JSON/TOML ファイル | シンプル | 大量データで遅い、並行アクセス問題 | 不採用 |
-| sled (embedded DB) | Rust native | メンテナンス状況が不透明 | 不採用 |
+| SQLite | Robust, queryable, single‑file | Extra dependency | **Chosen** |
+| JSON/TOML file | Simple | Slow with large data, concurrency issues | Rejected |
+| sled (embedded DB) | Rust native | Unclear maintenance status | Rejected |
 
-### 非同期ランタイム
+### Async runtime
 
-| 選択肢 | メリット | デメリット | 決定 |
+| Option | Pros | Cons | Decision |
 | :--- | :--- | :--- | :--- |
-| tokio | 成熟、エコシステム充実 | バイナリサイズ増加 | **採用** |
-| async-std | 軽量 | エコシステムが小さい | 不採用 |
-| 同期処理 | シンプル | ストリーミング実装が複雑 | 不採用 |
+| tokio | Mature, rich ecosystem | Larger binary size | **Chosen** |
+| async‑std | Lightweight | Smaller ecosystem | Rejected |
+| Synchronous processing | Simpler | Streaming implementation becomes complex | Rejected |
 
 ---
 
 ## Appendix: Future Enhancements (Out of Scope for v1)
 
-*   複数ファイルの一括翻訳
-*   翻訳元言語の自動検出
-*   チャンク分割による大規模ファイル対応
-*   キャッシュの有効期限設定
-*   翻訳品質のフィードバック機能
+* Bulk translation of multiple files
+* Automatic detection of source language
+* Chunked processing for very large files
+* Cache expiration settings
+* Feedback mechanism for translation quality

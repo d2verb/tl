@@ -1,41 +1,41 @@
-/// Chat session configuration (modifiable during session)
-#[derive(Debug, Clone)]
-pub struct SessionConfig {
-    pub to: String,
-    pub endpoint: String,
-    pub model: String,
-}
-
-impl SessionConfig {
-    pub const fn new(to: String, endpoint: String, model: String) -> Self {
-        Self {
-            to,
-            endpoint,
-            model,
-        }
-    }
-
-    pub fn set(&mut self, key: &str, value: &str) -> Result<(), String> {
-        match key {
-            "to" => self.to = value.to_string(),
-            "endpoint" => self.endpoint = value.to_string(),
-            "model" => self.model = value.to_string(),
-            _ => return Err(format!("Unknown configuration key: '{key}'")),
-        }
-        Ok(())
-    }
-}
-
 use anyhow::Result;
 use futures_util::StreamExt;
-use rustyline::DefaultEditor;
-use rustyline::error::ReadlineError;
+use inquire::Text;
+use inquire::ui::{Attributes, Color, RenderConfig, StyleSheet, Styled};
 use std::io::{self, Write};
 
-use super::command::{Input, SlashCommand, parse_input};
+use super::command::{Input, SlashCommand, SlashCommandCompleter, parse_input};
 use super::ui;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::Spinner;
+
+/// Chat session configuration
+#[derive(Debug, Clone)]
+pub struct SessionConfig {
+    pub provider_name: String,
+    pub endpoint: String,
+    pub model: String,
+    pub api_key: Option<String>,
+    pub to: String,
+}
+
+impl SessionConfig {
+    pub const fn new(
+        provider_name: String,
+        endpoint: String,
+        model: String,
+        api_key: Option<String>,
+        to: String,
+    ) -> Self {
+        Self {
+            provider_name,
+            endpoint,
+            model,
+            api_key,
+            to,
+        }
+    }
+}
 
 pub struct ChatSession {
     config: SessionConfig,
@@ -44,17 +44,31 @@ pub struct ChatSession {
 
 impl ChatSession {
     pub fn new(config: SessionConfig) -> Self {
-        let client = TranslationClient::new(config.endpoint.clone());
+        let client = TranslationClient::new(config.endpoint.clone(), config.api_key.clone());
         Self { config, client }
     }
 
     pub async fn run(&mut self) -> Result<()> {
         ui::print_header();
 
-        let mut rl = DefaultEditor::new()?;
+        let prompt_style = Styled::new("❯")
+            .with_fg(Color::LightBlue)
+            .with_attr(Attributes::BOLD);
+        let mut render_config = RenderConfig::default()
+            .with_prompt_prefix(prompt_style)
+            .with_answered_prompt_prefix(prompt_style);
+
+        // Non-highlighted suggestions: gray
+        render_config.option = StyleSheet::new().with_fg(Color::Grey);
+        // Highlighted suggestion: purple
+        render_config.selected_option = Some(StyleSheet::new().with_fg(Color::DarkMagenta));
 
         loop {
-            let input = rl.readline(&ui::prompt());
+            let input = Text::new("")
+                .with_render_config(render_config)
+                .with_autocomplete(SlashCommandCompleter)
+                .with_help_message("Type text to translate, /help for commands, Ctrl+C to quit")
+                .prompt();
 
             match input {
                 Ok(line) => match parse_input(&line) {
@@ -68,7 +82,11 @@ impl ChatSession {
                         self.translate_and_print(&text).await?;
                     }
                 },
-                Err(ReadlineError::Interrupted | ReadlineError::Eof) => {
+                Err(
+                    inquire::InquireError::OperationCanceled
+                    | inquire::InquireError::OperationInterrupted,
+                ) => {
+                    println!(); // Clear line before goodbye message
                     break;
                 }
                 Err(e) => return Err(e.into()),
@@ -79,26 +97,10 @@ impl ChatSession {
         Ok(())
     }
 
-    fn handle_command(&mut self, cmd: SlashCommand) -> bool {
+    fn handle_command(&self, cmd: SlashCommand) -> bool {
         match cmd {
             SlashCommand::Config => {
                 ui::print_config(&self.config);
-                true
-            }
-            SlashCommand::Set { key, value } => {
-                match self.config.set(&key, &value) {
-                    Ok(()) => {
-                        if key == "endpoint" {
-                            self.client = TranslationClient::new(self.config.endpoint.clone());
-                        }
-                        ui::print_set_success(&key, &value);
-                    }
-                    Err(e) => ui::print_error(&e),
-                }
-                true
-            }
-            SlashCommand::Clear => {
-                ui::clear_screen();
                 true
             }
             SlashCommand::Help => {
@@ -122,7 +124,6 @@ impl ChatSession {
         };
 
         let spinner = Spinner::new("Translating...");
-        spinner.start();
 
         let mut stream = self.client.translate_stream(&request).await?;
         let mut first_chunk = true;
@@ -146,5 +147,27 @@ impl ChatSession {
         println!();
         println!();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_session_config_new() {
+        let config = SessionConfig::new(
+            "ollama".to_string(),
+            "http://localhost:11434".to_string(),
+            "gemma3:12b".to_string(),
+            None,
+            "ja".to_string(),
+        );
+
+        assert_eq!(config.provider_name, "ollama");
+        assert_eq!(config.endpoint, "http://localhost:11434");
+        assert_eq!(config.model, "gemma3:12b");
+        assert!(config.api_key.is_none());
+        assert_eq!(config.to, "ja");
     }
 }

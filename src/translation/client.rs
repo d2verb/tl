@@ -45,13 +45,15 @@ struct Delta {
 pub struct TranslationClient {
     client: Client,
     endpoint: String,
+    api_key: Option<String>,
 }
 
 impl TranslationClient {
-    pub fn new(endpoint: String) -> Self {
+    pub fn new(endpoint: String, api_key: Option<String>) -> Self {
         Self {
             client: Client::new(),
             endpoint,
+            api_key,
         }
     }
 
@@ -79,10 +81,14 @@ impl TranslationClient {
             stream: true,
         };
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&chat_request)
+        let mut http_request = self.client.post(&url).json(&chat_request);
+
+        // Add Authorization header if API key is present
+        if let Some(api_key) = &self.api_key {
+            http_request = http_request.header("Authorization", format!("Bearer {api_key}"));
+        }
+
+        let response = http_request
             .send()
             .await
             .with_context(|| format!("Failed to connect to API endpoint: {url}"))?;

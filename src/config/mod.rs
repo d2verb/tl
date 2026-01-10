@@ -1,3 +1,3 @@
 mod manager;
 
-pub use manager::{Config, ConfigManager};
+pub use manager::{ConfigFile, ConfigManager, ProviderConfig, ResolvedConfig, TlConfig};

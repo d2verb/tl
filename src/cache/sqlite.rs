@@ -62,7 +62,7 @@ impl CacheManager {
     }
 
     pub fn get(&self, request: &TranslationRequest) -> Result<Option<String>> {
-        let cache_key = self.compute_cache_key(request);
+        let cache_key = Self::compute_cache_key(request);
         let conn = self.connect()?;
 
         let mut stmt =
@@ -81,7 +81,7 @@ impl CacheManager {
     }
 
     pub fn put(&self, request: &TranslationRequest, translated_text: &str) -> Result<()> {
-        let cache_key = self.compute_cache_key(request);
+        let cache_key = Self::compute_cache_key(request);
         let prompt_hash = Self::compute_prompt_hash();
         let conn = self.connect()?;
 
@@ -104,8 +104,7 @@ impl CacheManager {
         Ok(())
     }
 
-    #[allow(clippy::unused_self)]
-    fn compute_cache_key(&self, request: &TranslationRequest) -> String {
+    fn compute_cache_key(request: &TranslationRequest) -> String {
         let prompt_hash = Self::compute_prompt_hash();
 
         let cache_input = serde_json::json!({
