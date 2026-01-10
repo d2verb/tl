@@ -146,7 +146,7 @@ fn print_providers(specific_provider: Option<&str>) -> Result<()> {
         }
     } else {
         // List all providers
-        println!("Configured providers:\n");
+        println!("Configured providers:");
         for (name, provider) in &config.providers {
             let is_default = default_provider == Some(name.as_str());
             println!("  {}{}", name, if is_default { " (default)" } else { "" });
