@@ -78,6 +78,7 @@ fn parse_slash_command(cmd: &str) -> Input {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 

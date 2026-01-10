@@ -261,6 +261,7 @@ pub fn resolve_config(
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use crate::config::{ProviderConfig, TlConfig};

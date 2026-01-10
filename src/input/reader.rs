@@ -72,6 +72,7 @@ impl InputReader {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use std::io::Write;
@@ -101,7 +102,7 @@ mod tests {
     fn test_read_file_unicode() {
         let mut temp_file = NamedTempFile::new().unwrap();
         let content = "こんにちは世界！🌍\n日本語テスト";
-        write!(temp_file, "{}", content).unwrap();
+        write!(temp_file, "{content}").unwrap();
 
         let result = InputReader::read(Some(temp_file.path().to_str().unwrap())).unwrap();
         assert_eq!(result, content);
@@ -147,7 +148,7 @@ mod tests {
     fn test_read_file_multiline() {
         let mut temp_file = NamedTempFile::new().unwrap();
         let content = "Line 1\nLine 2\nLine 3";
-        write!(temp_file, "{}", content).unwrap();
+        write!(temp_file, "{content}").unwrap();
 
         let result = InputReader::read(Some(temp_file.path().to_str().unwrap())).unwrap();
         assert_eq!(result, content);
