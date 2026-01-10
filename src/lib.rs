@@ -56,6 +56,9 @@ pub mod config;
 /// Input reading from files and stdin.
 pub mod input;
 
+/// XDG-style path utilities for configuration and cache.
+pub mod paths;
+
 /// Translation client for OpenAI-compatible APIs.
 pub mod translation;
 

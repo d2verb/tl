@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::paths;
+
 /// Default settings in the `[tl]` section of config.toml.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TlConfig {
@@ -87,15 +89,11 @@ pub struct ConfigManager {
 impl ConfigManager {
     /// Creates a new config manager.
     ///
-    /// Configuration is stored at `~/.config/tl/config.toml`.
+    /// Configuration is stored at `$XDG_CONFIG_HOME/tl/config.toml`
+    /// or `~/.config/tl/config.toml` if `XDG_CONFIG_HOME` is not set.
     pub fn new() -> Result<Self> {
-        let config_dir = dirs::home_dir()
-            .context("Failed to determine home directory")?
-            .join(".config")
-            .join("tl");
-
         Ok(Self {
-            config_path: config_dir.join("config.toml"),
+            config_path: paths::config_dir().join("config.toml"),
         })
     }
 

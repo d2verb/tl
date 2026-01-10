@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use rusqlite::Connection;
 use std::path::PathBuf;
 
+use crate::paths;
 use crate::translation::TranslationRequest;
 
 /// Manages translation caching using a `SQLite` database.
@@ -35,11 +36,10 @@ pub struct CacheManager {
 impl CacheManager {
     /// Creates a new cache manager.
     ///
-    /// Initializes the `SQLite` database at `~/.cache/tl/translations.db`.
+    /// Initializes the `SQLite` database at `$XDG_CACHE_HOME/tl/translations.db`
+    /// or `~/.cache/tl/translations.db` if `XDG_CACHE_HOME` is not set.
     pub fn new() -> Result<Self> {
-        let cache_dir = dirs::cache_dir()
-            .context("Failed to determine cache directory")?
-            .join("tl");
+        let cache_dir = paths::cache_dir();
 
         std::fs::create_dir_all(&cache_dir).with_context(|| {
             format!("Failed to create cache directory: {}", cache_dir.display())
