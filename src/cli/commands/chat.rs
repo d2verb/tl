@@ -2,9 +2,8 @@
 
 use anyhow::Result;
 
-use super::translate::{TranslateOptions, resolve_config};
 use crate::chat::{ChatSession, SessionConfig};
-use crate::config::ConfigManager;
+use crate::config::{ConfigManager, ResolveOptions, resolve_config};
 
 /// Options for the chat command.
 pub struct ChatOptions {
@@ -23,17 +22,13 @@ pub async fn run_chat(options: ChatOptions) -> Result<()> {
     let manager = ConfigManager::new()?;
     let config_file = manager.load_or_default();
 
-    // Reuse resolve_config from translate
-    let translate_options = TranslateOptions {
-        file: None,
+    let resolve_options = ResolveOptions {
         to: options.to,
         provider: options.provider,
         model: options.model,
-        no_cache: false,
-        write: false,
     };
 
-    let resolved = resolve_config(&translate_options, &config_file)?;
+    let resolved = resolve_config(&resolve_options, &config_file)?;
 
     let session_config = SessionConfig::new(
         resolved.provider_name,

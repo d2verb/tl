@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use crate::cache::CacheManager;
-use crate::config::{ConfigFile, ConfigManager, ResolvedConfig};
+use crate::config::{ConfigManager, ResolveOptions, resolve_config};
 use crate::input::InputReader;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::Spinner;
@@ -55,7 +55,12 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
 
     let manager = ConfigManager::new()?;
     let config_file = manager.load_or_default();
-    let resolved = resolve_config(&options, &config_file)?;
+    let resolve_options = ResolveOptions {
+        to: options.to.clone(),
+        provider: options.provider.clone(),
+        model: options.model.clone(),
+    };
+    let resolved = resolve_config(&resolve_options, &config_file)?;
 
     let source_text = InputReader::read(options.file.as_deref())?;
 
@@ -145,172 +150,11 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     Ok(())
 }
 
-/// Resolves configuration by merging CLI options with config file settings.
-///
-/// CLI options take precedence over config file values.
-///
-/// # Errors
-///
-/// Returns an error if required configuration (provider, model, target language)
-/// is missing or if the specified provider is not found.
-pub fn resolve_config(
-    options: &TranslateOptions,
-    config_file: &ConfigFile,
-) -> Result<ResolvedConfig> {
-    // Resolve provider (clone only the value we use, not both)
-    let provider_name = options
-        .provider
-        .as_ref()
-        .or(config_file.tl.provider.as_ref())
-        .cloned()
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Error: Missing required configuration: 'provider'\n\n\
-                 Please provide it via:\n  \
-                 - CLI option: tl --provider <name>\n  \
-                 - Config file: ~/.config/tl/config.toml"
-            )
-        })?;
-
-    // Get provider config
-    let provider_config = config_file.providers.get(&provider_name).ok_or_else(|| {
-        let available: Vec<_> = config_file.providers.keys().collect();
-        if available.is_empty() {
-            anyhow::anyhow!(
-                "Error: Provider '{provider_name}' not found\n\n\
-                 No providers configured. Add providers to ~/.config/tl/config.toml"
-            )
-        } else {
-            anyhow::anyhow!(
-                "Error: Provider '{provider_name}' not found\n\n\
-                 Available providers:\n  \
-                 - {}\n\n\
-                 Add providers to ~/.config/tl/config.toml",
-                available
-                    .iter()
-                    .map(|s| s.as_str())
-                    .collect::<Vec<_>>()
-                    .join("\n  - ")
-            )
-        }
-    })?;
-
-    // Resolve model (clone only the value we use, not both)
-    let model = options
-        .model
-        .as_ref()
-        .or(config_file.tl.model.as_ref())
-        .cloned()
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Error: Missing required configuration: 'model'\n\n\
-                 Please provide it via:\n  \
-                 - CLI option: tl --model <name>\n  \
-                 - Config file: ~/.config/tl/config.toml"
-            )
-        })?;
-
-    // Warn if model is not in provider's models list
-    if !provider_config.models.is_empty() && !provider_config.models.contains(&model) {
-        eprintln!(
-            "Warning: Model '{}' is not in the configured models list for '{}'\n\
-             Configured models: {}\n\
-             Proceeding anyway...\n",
-            model,
-            provider_name,
-            provider_config.models.join(", ")
-        );
-    }
-
-    // Resolve target language (clone only the value we use, not both)
-    let target_language = options
-        .to
-        .as_ref()
-        .or(config_file.tl.to.as_ref())
-        .cloned()
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Error: Missing required configuration: 'to' (target language)\n\n\
-                 Please provide it via:\n  \
-                 - CLI option: tl --to <lang>\n  \
-                 - Config file: ~/.config/tl/config.toml"
-            )
-        })?;
-
-    // Get API key
-    let api_key = provider_config.get_api_key();
-
-    // Check if API key is required but missing
-    if provider_config.requires_api_key() && api_key.is_none() {
-        let env_var = provider_config.api_key_env.as_deref().unwrap_or("API_KEY");
-        bail!(
-            "Error: Provider '{provider_name}' requires an API key\n\n\
-             Set the {env_var} environment variable:\n  \
-             export {env_var}=\"your-api-key\"\n\n\
-             Or set api_key in ~/.config/tl/config.toml"
-        );
-    }
-
-    Ok(ResolvedConfig {
-        provider_name,
-        endpoint: provider_config.endpoint.clone(),
-        model,
-        api_key,
-        target_language,
-    })
-}
-
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::config::{ProviderConfig, TlConfig};
-    use std::collections::HashMap;
     use tempfile::TempDir;
-
-    fn create_test_options() -> TranslateOptions {
-        TranslateOptions {
-            file: None,
-            to: Some("ja".to_string()),
-            provider: Some("ollama".to_string()),
-            model: Some("gemma3:12b".to_string()),
-            no_cache: false,
-            write: false,
-        }
-    }
-
-    fn create_test_config() -> ConfigFile {
-        let mut providers = HashMap::new();
-        providers.insert(
-            "ollama".to_string(),
-            ProviderConfig {
-                endpoint: "http://localhost:11434".to_string(),
-                api_key: None,
-                api_key_env: None,
-                models: vec!["gemma3:12b".to_string()],
-            },
-        );
-        providers.insert(
-            "openrouter".to_string(),
-            ProviderConfig {
-                endpoint: "https://openrouter.ai/api".to_string(),
-                api_key: None,
-                api_key_env: Some("TL_TEST_NONEXISTENT_API_KEY".to_string()),
-                models: vec!["gpt-4o".to_string()],
-            },
-        );
-
-        ConfigFile {
-            tl: TlConfig {
-                provider: Some("ollama".to_string()),
-                model: Some("gemma3:12b".to_string()),
-                to: Some("ja".to_string()),
-            },
-            providers,
-        }
-    }
-
-    // atomic_write tests
 
     #[test]
     fn test_atomic_write_creates_file() {
@@ -361,133 +205,5 @@ mod tests {
 
         let read_content = fs::read_to_string(&file_path).unwrap();
         assert_eq!(read_content, content);
-    }
-
-    // resolve_config tests
-
-    #[test]
-    fn test_resolve_config_with_cli_options() {
-        let options = create_test_options();
-        let config = create_test_config();
-
-        let resolved = resolve_config(&options, &config).unwrap();
-
-        assert_eq!(resolved.provider_name, "ollama");
-        assert_eq!(resolved.endpoint, "http://localhost:11434");
-        assert_eq!(resolved.model, "gemma3:12b");
-        assert_eq!(resolved.target_language, "ja");
-        assert!(resolved.api_key.is_none());
-    }
-
-    #[test]
-    fn test_resolve_config_cli_overrides_file() {
-        let mut options = create_test_options();
-        options.to = Some("en".to_string());
-        options.model = Some("llama3".to_string());
-
-        let config = create_test_config();
-
-        let resolved = resolve_config(&options, &config).unwrap();
-
-        assert_eq!(resolved.target_language, "en");
-        assert_eq!(resolved.model, "llama3");
-    }
-
-    #[test]
-    fn test_resolve_config_falls_back_to_file() {
-        let options = TranslateOptions {
-            file: None,
-            to: None,
-            provider: None,
-            model: None,
-            no_cache: false,
-            write: false,
-        };
-        let config = create_test_config();
-
-        let resolved = resolve_config(&options, &config).unwrap();
-
-        assert_eq!(resolved.provider_name, "ollama");
-        assert_eq!(resolved.model, "gemma3:12b");
-        assert_eq!(resolved.target_language, "ja");
-    }
-
-    #[test]
-    fn test_resolve_config_missing_provider() {
-        let options = TranslateOptions {
-            file: None,
-            to: Some("ja".to_string()),
-            provider: None,
-            model: Some("model".to_string()),
-            no_cache: false,
-            write: false,
-        };
-        let config = ConfigFile {
-            tl: TlConfig {
-                provider: None,
-                model: None,
-                to: None,
-            },
-            providers: HashMap::new(),
-        };
-
-        let result = resolve_config(&options, &config);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("provider"));
-    }
-
-    #[test]
-    fn test_resolve_config_provider_not_found() {
-        let mut options = create_test_options();
-        options.provider = Some("nonexistent".to_string());
-
-        let config = create_test_config();
-
-        let result = resolve_config(&options, &config);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not found"));
-    }
-
-    #[test]
-    fn test_resolve_config_missing_model() {
-        let mut options = create_test_options();
-        options.model = None;
-
-        let mut config = create_test_config();
-        config.tl.model = None;
-
-        let result = resolve_config(&options, &config);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("model"));
-    }
-
-    #[test]
-    fn test_resolve_config_missing_target_language() {
-        let mut options = create_test_options();
-        options.to = None;
-
-        let mut config = create_test_config();
-        config.tl.to = None;
-
-        let result = resolve_config(&options, &config);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("to"));
-    }
-
-    #[test]
-    fn test_resolve_config_api_key_required_but_missing() {
-        let mut options = create_test_options();
-        options.provider = Some("openrouter".to_string());
-
-        let config = create_test_config();
-
-        let result = resolve_config(&options, &config);
-
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("API key"));
     }
 }
