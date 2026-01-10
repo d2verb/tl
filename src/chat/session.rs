@@ -9,17 +9,23 @@ use super::ui;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::Spinner;
 
-/// Chat session configuration
+/// Configuration for a chat session.
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
+    /// The provider name.
     pub provider_name: String,
+    /// The API endpoint URL.
     pub endpoint: String,
+    /// The model to use.
     pub model: String,
+    /// The API key (if required).
     pub api_key: Option<String>,
+    /// The target language code.
     pub to: String,
 }
 
 impl SessionConfig {
+    /// Creates a new session configuration.
     pub const fn new(
         provider_name: String,
         endpoint: String,
@@ -37,12 +43,16 @@ impl SessionConfig {
     }
 }
 
+/// An interactive chat session for translation.
+///
+/// Provides a REPL-style interface for translating text interactively.
 pub struct ChatSession {
     config: SessionConfig,
     client: TranslationClient,
 }
 
 impl ChatSession {
+    /// Creates a new chat session with the given configuration.
     pub fn new(config: SessionConfig) -> Self {
         let client = TranslationClient::new(config.endpoint.clone(), config.api_key.clone());
         Self { config, client }

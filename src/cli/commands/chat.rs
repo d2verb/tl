@@ -1,15 +1,24 @@
+//! Chat mode command handler.
+
 use anyhow::Result;
 
 use super::translate::{TranslateOptions, resolve_config};
 use crate::chat::{ChatSession, SessionConfig};
 use crate::config::ConfigManager;
 
+/// Options for the chat command.
 pub struct ChatOptions {
+    /// Target language code.
     pub to: Option<String>,
+    /// Provider name.
     pub provider: Option<String>,
+    /// Model name.
     pub model: Option<String>,
 }
 
+/// Runs the interactive chat mode.
+///
+/// Starts a REPL-style session for translating text interactively.
 pub async fn run_chat(options: ChatOptions) -> Result<()> {
     let manager = ConfigManager::new()?;
     let config_file = manager.load_or_default();

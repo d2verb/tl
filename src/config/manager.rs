@@ -4,28 +4,37 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-/// [tl] セクションの設定
+/// Default settings in the `[tl]` section of config.toml.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TlConfig {
+    /// Default provider name.
     pub provider: Option<String>,
+    /// Default model name.
     pub model: Option<String>,
+    /// Default target language (ISO 639-1 code).
     pub to: Option<String>,
 }
 
-/// プロバイダー設定
+/// Configuration for a translation provider.
+///
+/// Each provider has an endpoint and optional API key settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
+    /// The OpenAI-compatible API endpoint URL.
     pub endpoint: String,
+    /// API key stored directly in config (not recommended).
     #[serde(default)]
     pub api_key: Option<String>,
+    /// Environment variable name containing the API key.
     #[serde(default)]
     pub api_key_env: Option<String>,
+    /// List of available models for this provider.
     #[serde(default)]
     pub models: Vec<String>,
 }
 
 impl ProviderConfig {
-    /// API Key を取得（環境変数優先）
+    /// Gets the API key, preferring environment variable over config file.
     pub fn get_api_key(&self) -> Option<String> {
         if let Some(env_var) = &self.api_key_env
             && let Ok(key) = std::env::var(env_var)
@@ -36,36 +45,49 @@ impl ProviderConfig {
         self.api_key.clone()
     }
 
-    /// API Key が必要かどうか
+    /// Returns `true` if this provider requires an API key.
     pub const fn requires_api_key(&self) -> bool {
         self.api_key.is_some() || self.api_key_env.is_some()
     }
 }
 
-/// 設定ファイル全体
+/// The complete configuration file structure.
+///
+/// Corresponds to `~/.config/tl/config.toml`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ConfigFile {
+    /// Default settings.
     #[serde(default)]
     pub tl: TlConfig,
+    /// Provider configurations keyed by name.
     #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
 }
 
-/// 解決済みの設定（CLI引数とconfigファイルをマージ済み）
+/// Resolved configuration after merging CLI arguments and config file.
 #[derive(Debug, Clone)]
 pub struct ResolvedConfig {
+    /// The selected provider name.
     pub provider_name: String,
+    /// The API endpoint URL.
     pub endpoint: String,
+    /// The model to use for translation.
     pub model: String,
+    /// The API key (if required).
     pub api_key: Option<String>,
+    /// The target language code.
     pub target_language: String,
 }
 
+/// Manages loading and saving configuration files.
 pub struct ConfigManager {
     config_path: PathBuf,
 }
 
 impl ConfigManager {
+    /// Creates a new config manager.
+    ///
+    /// Configuration is stored at `~/.config/tl/config.toml`.
     pub fn new() -> Result<Self> {
         let config_dir = dirs::home_dir()
             .context("Failed to determine home directory")?

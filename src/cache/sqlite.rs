@@ -4,11 +4,38 @@ use std::path::PathBuf;
 
 use crate::translation::TranslationRequest;
 
+/// Manages translation caching using a `SQLite` database.
+///
+/// The cache stores translations keyed by source text, target language,
+/// model, endpoint, and prompt hash to avoid redundant API calls.
+///
+/// # Example
+///
+/// ```no_run
+/// use tl::cache::CacheManager;
+/// use tl::translation::TranslationRequest;
+///
+/// let cache = CacheManager::new().unwrap();
+/// let request = TranslationRequest {
+///     source_text: "Hello".to_string(),
+///     target_language: "ja".to_string(),
+///     model: "gpt-4".to_string(),
+///     endpoint: "https://api.openai.com".to_string(),
+/// };
+///
+/// // Check cache
+/// if let Some(cached) = cache.get(&request).unwrap() {
+///     println!("Cached: {}", cached);
+/// }
+/// ```
 pub struct CacheManager {
     db_path: PathBuf,
 }
 
 impl CacheManager {
+    /// Creates a new cache manager.
+    ///
+    /// Initializes the `SQLite` database at `~/.cache/tl/translations.db`.
     pub fn new() -> Result<Self> {
         let cache_dir = dirs::cache_dir()
             .context("Failed to determine cache directory")?
@@ -60,6 +87,10 @@ impl CacheManager {
             .with_context(|| format!("Failed to open cache database: {}", self.db_path.display()))
     }
 
+    /// Retrieves a cached translation if available.
+    ///
+    /// Returns `None` if no cached translation exists for the request.
+    /// Updates the `accessed_at` timestamp on cache hit.
     pub fn get(&self, request: &TranslationRequest) -> Result<Option<String>> {
         let cache_key = request.cache_key();
         let conn = self.connect()?;
@@ -79,6 +110,9 @@ impl CacheManager {
         Ok(result)
     }
 
+    /// Stores a translation in the cache.
+    ///
+    /// If a translation with the same cache key already exists, it is replaced.
     pub fn put(&self, request: &TranslationRequest, translated_text: &str) -> Result<()> {
         let cache_key = request.cache_key();
         let prompt_hash = TranslationRequest::prompt_hash();

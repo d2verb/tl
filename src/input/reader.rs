@@ -2,11 +2,25 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::io::{self, Read};
 
-const MAX_INPUT_SIZE: usize = 1024 * 1024; // 1MB
+/// Maximum input size (1 MB).
+const MAX_INPUT_SIZE: usize = 1024 * 1024;
 
+/// Reads input from files or stdin.
+///
+/// Enforces a maximum input size of 1 MB to prevent memory issues.
 pub struct InputReader;
 
 impl InputReader {
+    /// Reads input from a file or stdin.
+    ///
+    /// If `file_path` is `Some`, reads from the specified file.
+    /// If `file_path` is `None`, reads from stdin.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The file cannot be read
+    /// - The input exceeds 1 MB
     pub fn read(file_path: Option<&str>) -> Result<String> {
         file_path.map_or_else(Self::read_stdin, Self::read_file)
     }

@@ -27,15 +27,26 @@ fn atomic_write(file_path: &str, content: &str) -> Result<()> {
     Ok(())
 }
 
+/// Options for the translate command.
 pub struct TranslateOptions {
+    /// Input file path (reads from stdin if `None`).
     pub file: Option<String>,
+    /// Target language code.
     pub to: Option<String>,
+    /// Provider name.
     pub provider: Option<String>,
+    /// Model name.
     pub model: Option<String>,
+    /// Whether to bypass the cache.
     pub no_cache: bool,
+    /// Whether to overwrite the input file with the translation.
     pub write: bool,
 }
 
+/// Runs the translate command.
+///
+/// Translates input from a file or stdin and outputs the result.
+/// Supports caching and streaming output.
 pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     // Validate -w option requires a file
     if options.write && options.file.is_none() {
@@ -134,6 +145,14 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     Ok(())
 }
 
+/// Resolves configuration by merging CLI options with config file settings.
+///
+/// CLI options take precedence over config file values.
+///
+/// # Errors
+///
+/// Returns an error if required configuration (provider, model, target language)
+/// is missing or if the specified provider is not found.
 pub fn resolve_config(
     options: &TranslateOptions,
     config_file: &ConfigFile,

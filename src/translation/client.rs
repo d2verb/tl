@@ -8,16 +8,27 @@ use std::pin::Pin;
 
 use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt};
 
+/// A request to translate text.
+///
+/// Contains all parameters needed to perform a translation and compute
+/// a unique cache key.
 #[derive(Debug, Clone)]
 pub struct TranslationRequest {
+    /// The text to translate.
     pub source_text: String,
+    /// The target language (ISO 639-1 code, e.g., "ja", "en").
     pub target_language: String,
+    /// The model to use for translation.
     pub model: String,
+    /// The API endpoint URL.
     pub endpoint: String,
 }
 
 impl TranslationRequest {
-    /// Compute cache key for this request
+    /// Computes a unique cache key for this request.
+    ///
+    /// The key is a SHA-256 hash of the source text, target language,
+    /// model, endpoint, and prompt template hash.
     pub fn cache_key(&self) -> String {
         let prompt_hash = Self::prompt_hash();
 
@@ -34,7 +45,9 @@ impl TranslationRequest {
         hex::encode(hasher.finalize())
     }
 
-    /// Compute hash of the system prompt template
+    /// Computes a hash of the system prompt template.
+    ///
+    /// Used to invalidate cache when the prompt changes.
     pub fn prompt_hash() -> String {
         let mut hasher = Sha256::new();
         hasher.update(SYSTEM_PROMPT_TEMPLATE.as_bytes());
@@ -71,6 +84,36 @@ struct Delta {
     content: Option<String>,
 }
 
+/// Client for translating text using OpenAI-compatible APIs.
+///
+/// Supports streaming responses for real-time output.
+///
+/// # Example
+///
+/// ```no_run
+/// use tl::translation::{TranslationClient, TranslationRequest};
+/// use futures_util::StreamExt;
+///
+/// # async fn example() -> anyhow::Result<()> {
+/// let client = TranslationClient::new(
+///     "http://localhost:11434".to_string(),
+///     None,
+/// );
+///
+/// let request = TranslationRequest {
+///     source_text: "Hello, world!".to_string(),
+///     target_language: "ja".to_string(),
+///     model: "gemma3:12b".to_string(),
+///     endpoint: "http://localhost:11434".to_string(),
+/// };
+///
+/// let mut stream = client.translate_stream(&request).await?;
+/// while let Some(chunk) = stream.next().await {
+///     print!("{}", chunk?);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub struct TranslationClient {
     client: Client,
     endpoint: String,
@@ -78,6 +121,7 @@ pub struct TranslationClient {
 }
 
 impl TranslationClient {
+    /// Creates a new translation client.
     pub fn new(endpoint: String, api_key: Option<String>) -> Self {
         Self {
             client: Client::new(),
@@ -86,6 +130,10 @@ impl TranslationClient {
         }
     }
 
+    /// Translates text and returns a stream of response chunks.
+    ///
+    /// The stream yields chunks of the translated text as they arrive,
+    /// enabling real-time display of the translation.
     pub async fn translate_stream(
         &self,
         request: &TranslationRequest,

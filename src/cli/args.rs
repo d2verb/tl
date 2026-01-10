@@ -1,5 +1,8 @@
+//! CLI argument definitions using clap.
+
 use clap::{Parser, Subcommand};
 
+/// Command-line arguments for the `tl` CLI.
 #[derive(Parser, Debug)]
 #[command(name = "tl")]
 #[command(about = "AI-powered translation CLI tool")]
@@ -32,6 +35,7 @@ pub struct Args {
     pub command: Option<Command>,
 }
 
+/// Available subcommands.
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// List supported language codes

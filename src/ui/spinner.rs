@@ -1,11 +1,15 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 
+/// A terminal spinner for indicating progress.
+///
+/// Automatically clears itself when dropped (RAII pattern).
 pub struct Spinner {
     progress_bar: ProgressBar,
 }
 
 impl Spinner {
+    /// Creates and starts a new spinner with the given message.
     #[allow(clippy::unwrap_used)]
     pub fn new(message: &str) -> Self {
         let progress_bar = ProgressBar::new_spinner();
@@ -22,6 +26,7 @@ impl Spinner {
         Self { progress_bar }
     }
 
+    /// Stops the spinner and clears it from the terminal.
     pub fn stop(&self) {
         self.progress_bar.finish_and_clear();
     }
