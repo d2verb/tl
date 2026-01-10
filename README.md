@@ -7,6 +7,14 @@
 ## Install
 
 ```sh
+cargo install tl-cli
+```
+
+Or build from source:
+
+```sh
+git clone https://github.com/d2verb/tl.git
+cd tl
 cargo install --path .
 ```
 
