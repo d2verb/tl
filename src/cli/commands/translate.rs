@@ -53,14 +53,18 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     }
 
     let cache_manager = CacheManager::new()?;
-    let client = TranslationClient::new(resolved.endpoint.clone(), resolved.api_key.clone());
 
+    // Create request first, moving values where possible
+    // Only endpoint needs clone (used by both client and request)
     let request = TranslationRequest {
-        source_text: source_text.clone(),
-        target_language: resolved.target_language.clone(),
-        model: resolved.model.clone(),
+        source_text,
+        target_language: resolved.target_language,
+        model: resolved.model,
         endpoint: resolved.endpoint.clone(),
     };
+
+    // Create client with remaining values (endpoint cloned, api_key moved)
+    let client = TranslationClient::new(resolved.endpoint, resolved.api_key);
 
     if !options.no_cache
         && let Some(cached) = cache_manager.get(&request)?
@@ -134,11 +138,12 @@ pub fn resolve_config(
     options: &TranslateOptions,
     config_file: &ConfigFile,
 ) -> Result<ResolvedConfig> {
-    // Resolve provider
+    // Resolve provider (clone only the value we use, not both)
     let provider_name = options
         .provider
-        .clone()
-        .or_else(|| config_file.tl.provider.clone())
+        .as_ref()
+        .or(config_file.tl.provider.as_ref())
+        .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Error: Missing required configuration: 'provider'\n\n\
@@ -171,11 +176,12 @@ pub fn resolve_config(
         }
     })?;
 
-    // Resolve model
+    // Resolve model (clone only the value we use, not both)
     let model = options
         .model
-        .clone()
-        .or_else(|| config_file.tl.model.clone())
+        .as_ref()
+        .or(config_file.tl.model.as_ref())
+        .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Error: Missing required configuration: 'model'\n\n\
@@ -197,11 +203,12 @@ pub fn resolve_config(
         );
     }
 
-    // Resolve target language
+    // Resolve target language (clone only the value we use, not both)
     let target_language = options
         .to
-        .clone()
-        .or_else(|| config_file.tl.to.clone())
+        .as_ref()
+        .or(config_file.tl.to.as_ref())
+        .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Error: Missing required configuration: 'to' (target language)\n\n\

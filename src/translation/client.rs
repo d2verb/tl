@@ -3,6 +3,7 @@ use futures_util::Stream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 use std::pin::Pin;
 
 use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt};
@@ -41,17 +42,18 @@ impl TranslationRequest {
     }
 }
 
+// Use Cow to avoid cloning strings that are only borrowed for serialization
 #[derive(Debug, Serialize)]
-struct ChatCompletionRequest {
-    model: String,
-    messages: Vec<Message>,
+struct ChatCompletionRequest<'a> {
+    model: &'a str,
+    messages: Vec<Message<'a>>,
     stream: bool,
 }
 
 #[derive(Debug, Serialize)]
-struct Message {
-    role: String,
-    content: String,
+struct Message<'a> {
+    role: &'static str,
+    content: Cow<'a, str>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,16 +95,19 @@ impl TranslationClient {
             self.endpoint.trim_end_matches('/')
         );
 
+        // Build system prompt once (returns owned String)
+        let system_prompt = build_system_prompt(&request.target_language);
+
         let chat_request = ChatCompletionRequest {
-            model: request.model.clone(),
+            model: &request.model,
             messages: vec![
                 Message {
-                    role: "system".into(),
-                    content: build_system_prompt(&request.target_language),
+                    role: "system",
+                    content: Cow::Owned(system_prompt),
                 },
                 Message {
-                    role: "user".into(),
-                    content: request.source_text.clone(),
+                    role: "user",
+                    content: Cow::Borrowed(&request.source_text),
                 },
             ],
             stream: true,
