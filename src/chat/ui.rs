@@ -24,22 +24,23 @@ pub fn print_config(config: &SessionConfig) {
     println!(
         "  {}   {}",
         Style::label("provider"),
-        Style::value(&config.provider_name)
+        Style::value(&config.resolved.provider_name)
     );
     println!(
         "  {}      {}",
         Style::label("model"),
-        Style::value(&config.model)
+        Style::value(&config.resolved.model)
     );
     println!(
         "  {}         {}",
         Style::label("to"),
-        Style::value(&config.to)
+        Style::value(&config.resolved.target_language)
     );
     println!(
         "  {}      {}",
         Style::label("style"),
         config
+            .resolved
             .style_name
             .as_deref()
             .map_or_else(|| Style::secondary("(none)"), Style::value)
@@ -47,7 +48,7 @@ pub fn print_config(config: &SessionConfig) {
     println!(
         "  {}   {}",
         Style::label("endpoint"),
-        Style::secondary(&config.endpoint)
+        Style::secondary(&config.resolved.endpoint)
     );
     println!();
 }

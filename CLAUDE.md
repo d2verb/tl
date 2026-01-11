@@ -32,3 +32,9 @@ cargo llvm-cov
 - **Always include tests** (Unit or Integration) when fixing bugs or adding features.
 - **Target 85%+ test coverage** (best effort).
 - Update all related documents at the end of each task to keep documents up to date with changes.
+
+## Tool Usage Guidelines
+
+- **Documentation Search**: Prioritize using the `context7` MCP tool for all technical documentation and API specification searches. Always fetch the latest information before proceeding with implementation.
+- **Code Search & Analysis**: Prioritize using the `serena` MCP tool for deep code understanding, semantic searches, and dependency analysis across the project.
+- **Complex Tasks & Troubleshooting**: Use the `codex` MCP tool for architectural design consultations or if a bug fix attempt fails 3 or more times.

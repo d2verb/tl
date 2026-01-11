@@ -3,7 +3,8 @@
 use anyhow::{Result, bail};
 use inquire::{Confirm, Select, Text};
 
-use crate::config::{ConfigManager, ProviderConfig};
+use super::load_config;
+use crate::config::ProviderConfig;
 use crate::ui::{Style, handle_prompt_cancellation};
 
 /// Reserved names that cannot be used as provider names.
@@ -11,8 +12,7 @@ const RESERVED_NAMES: &[&str] = &["add", "edit", "remove", "list"];
 
 /// Prints all configured providers.
 pub fn list_providers() -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let config = manager.load_or_default();
+    let (_manager, config) = load_config()?;
 
     if config.providers.is_empty() {
         println!("{}", Style::warning("No providers configured."));
@@ -60,8 +60,7 @@ pub fn add_provider() -> Result<()> {
 }
 
 fn add_provider_inner() -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Input provider name
     let name = input_provider_name(&config.providers.keys().cloned().collect::<Vec<_>>())?;
@@ -106,8 +105,7 @@ pub fn edit_provider(name: &str) -> Result<()> {
 }
 
 fn edit_provider_inner(name: &str) -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Check if provider exists
     let Some(provider) = config.providers.get(name) else {
@@ -159,8 +157,7 @@ pub fn remove_provider(name: &str) -> Result<()> {
 }
 
 fn remove_provider_inner(name: &str) -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Check if provider exists
     if !config.providers.contains_key(name) {

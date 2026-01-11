@@ -3,14 +3,14 @@
 use anyhow::{Result, bail};
 use inquire::{Confirm, Editor, Text};
 
-use crate::config::{ConfigManager, CustomStyle};
+use super::load_config;
+use crate::config::CustomStyle;
 use crate::style::{PRESETS, get_preset, is_preset, sorted_custom_keys, validate_custom_key};
 use crate::ui::{Style, handle_prompt_cancellation};
 
 /// Lists all available styles (presets and custom).
 pub fn list_styles() -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let config = manager.load_or_default();
+    let (_manager, config) = load_config()?;
 
     // Print preset styles
     println!("{}", Style::header("Preset styles"));
@@ -61,8 +61,7 @@ pub fn show_style(name: &str) -> Result<()> {
     }
 
     // Check custom styles
-    let manager = ConfigManager::new()?;
-    let config = manager.load_or_default();
+    let (_manager, config) = load_config()?;
 
     let custom = config
         .styles
@@ -90,8 +89,7 @@ pub fn add_style() -> Result<()> {
 }
 
 fn add_style_inner() -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Get style name
     let name = Text::new("Style name:")
@@ -174,8 +172,7 @@ fn edit_style_inner(name: &str) -> Result<()> {
         bail!("Cannot edit preset style '{name}'. Preset styles are immutable.");
     }
 
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Check if exists
     let current = config.styles.get(name).cloned().ok_or_else(|| {
@@ -243,8 +240,7 @@ fn remove_style_inner(name: &str) -> Result<()> {
         bail!("Cannot remove preset style '{name}'. Preset styles are immutable.");
     }
 
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Check if exists
     if !config.styles.contains_key(name) {

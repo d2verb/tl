@@ -7,28 +7,18 @@ use std::io::{self, Write};
 
 use super::command::{Input, SlashCommand, SlashCommandCompleter, parse_input};
 use super::ui;
-use crate::config::CustomStyle;
+use crate::config::{CustomStyle, ResolvedConfig};
 use crate::style;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::{Spinner, Style};
 
 /// Configuration for a chat session.
+///
+/// Wraps [`ResolvedConfig`] and adds chat-specific fields.
 #[derive(Debug, Clone)]
 pub struct SessionConfig {
-    /// The provider name.
-    pub provider_name: String,
-    /// The API endpoint URL.
-    pub endpoint: String,
-    /// The model to use.
-    pub model: String,
-    /// The API key (if required).
-    pub api_key: Option<String>,
-    /// The target language code.
-    pub to: String,
-    /// The translation style name (for display).
-    pub style_name: Option<String>,
-    /// The translation style prompt (for LLM).
-    pub style_prompt: Option<String>,
+    /// The resolved configuration (provider, model, language, style).
+    pub resolved: ResolvedConfig,
     /// Available custom styles (cached from config file).
     pub custom_styles: HashMap<String, CustomStyle>,
 }
@@ -36,25 +26,9 @@ pub struct SessionConfig {
 impl SessionConfig {
     /// Creates a new session configuration.
     #[allow(clippy::missing_const_for_fn)] // HashMap can't be used in const context
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        provider_name: String,
-        endpoint: String,
-        model: String,
-        api_key: Option<String>,
-        to: String,
-        style_name: Option<String>,
-        style_prompt: Option<String>,
-        custom_styles: HashMap<String, CustomStyle>,
-    ) -> Self {
+    pub fn new(resolved: ResolvedConfig, custom_styles: HashMap<String, CustomStyle>) -> Self {
         Self {
-            provider_name,
-            endpoint,
-            model,
-            api_key,
-            to,
-            style_name,
-            style_prompt,
+            resolved,
             custom_styles,
         }
     }
@@ -71,7 +45,10 @@ pub struct ChatSession {
 impl ChatSession {
     /// Creates a new chat session with the given configuration.
     pub fn new(config: SessionConfig) -> Self {
-        let client = TranslationClient::new(config.endpoint.clone(), config.api_key.clone());
+        let client = TranslationClient::new(
+            config.resolved.endpoint.clone(),
+            config.resolved.api_key.clone(),
+        );
         Self { config, client }
     }
 
@@ -165,8 +142,8 @@ impl ChatSession {
     fn set_style(&mut self, value: Option<&str>) {
         let Some(key) = value else {
             // Clear style
-            self.config.style_name = None;
-            self.config.style_prompt = None;
+            self.config.resolved.style_name = None;
+            self.config.resolved.style_prompt = None;
             println!("{} Style cleared", Style::success("✓"));
             return;
         };
@@ -180,8 +157,8 @@ impl ChatSession {
             }
         };
 
-        self.config.style_name = Some(key.to_string());
-        self.config.style_prompt = Some(resolved.prompt().to_string());
+        self.config.resolved.style_name = Some(key.to_string());
+        self.config.resolved.style_prompt = Some(resolved.prompt().to_string());
         println!(
             "{} Style set to {}\n",
             Style::success("✓"),
@@ -195,7 +172,7 @@ impl ChatSession {
                 ui::print_error("Usage: /set to <language>");
             }
             Some(lang) => {
-                self.config.to = lang.to_string();
+                self.config.resolved.target_language = lang.to_string();
                 println!(
                     "{} Target language set to {}",
                     Style::success("✓"),
@@ -211,7 +188,7 @@ impl ChatSession {
                 ui::print_error("Usage: /set model <name>");
             }
             Some(model) => {
-                self.config.model = model.to_string();
+                self.config.resolved.model = model.to_string();
                 println!(
                     "{} Model set to {}",
                     Style::success("✓"),
@@ -224,10 +201,10 @@ impl ChatSession {
     async fn translate_and_print(&self, text: &str) -> Result<()> {
         let request = TranslationRequest {
             source_text: text.to_string(),
-            target_language: self.config.to.clone(),
-            model: self.config.model.clone(),
-            endpoint: self.config.endpoint.clone(),
-            style: self.config.style_prompt.clone(),
+            target_language: self.config.resolved.target_language.clone(),
+            model: self.config.resolved.model.clone(),
+            endpoint: self.config.resolved.endpoint.clone(),
+            style: self.config.resolved.style_prompt.clone(),
         };
 
         let spinner = Spinner::new("Translating...");
@@ -272,24 +249,28 @@ mod tests {
             },
         );
 
-        let config = SessionConfig::new(
-            "ollama".to_string(),
-            "http://localhost:11434".to_string(),
-            "gemma3:12b".to_string(),
-            None,
-            "ja".to_string(),
-            Some("casual".to_string()),
-            Some("Use a casual tone.".to_string()),
-            custom_styles,
-        );
+        let resolved = ResolvedConfig {
+            provider_name: "ollama".to_string(),
+            endpoint: "http://localhost:11434".to_string(),
+            model: "gemma3:12b".to_string(),
+            api_key: None,
+            target_language: "ja".to_string(),
+            style_name: Some("casual".to_string()),
+            style_prompt: Some("Use a casual tone.".to_string()),
+        };
 
-        assert_eq!(config.provider_name, "ollama");
-        assert_eq!(config.endpoint, "http://localhost:11434");
-        assert_eq!(config.model, "gemma3:12b");
-        assert!(config.api_key.is_none());
-        assert_eq!(config.to, "ja");
-        assert_eq!(config.style_name, Some("casual".to_string()));
-        assert_eq!(config.style_prompt, Some("Use a casual tone.".to_string()));
+        let config = SessionConfig::new(resolved, custom_styles);
+
+        assert_eq!(config.resolved.provider_name, "ollama");
+        assert_eq!(config.resolved.endpoint, "http://localhost:11434");
+        assert_eq!(config.resolved.model, "gemma3:12b");
+        assert!(config.resolved.api_key.is_none());
+        assert_eq!(config.resolved.target_language, "ja");
+        assert_eq!(config.resolved.style_name, Some("casual".to_string()));
+        assert_eq!(
+            config.resolved.style_prompt,
+            Some("Use a casual tone.".to_string())
+        );
         assert_eq!(
             config.custom_styles.get("my_style").map(|s| &s.prompt),
             Some(&"My custom prompt".to_string())

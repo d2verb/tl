@@ -2,8 +2,9 @@ use anyhow::{Result, bail};
 use futures_util::StreamExt;
 use std::io::{self, Write};
 
+use super::load_config;
 use crate::cache::CacheManager;
-use crate::config::{ConfigManager, ResolveOptions, resolve_config};
+use crate::config::{ResolveOptions, resolve_config};
 use crate::fs::atomic_write;
 use crate::input::InputReader;
 use crate::translation::{TranslationClient, TranslationRequest};
@@ -37,8 +38,7 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         bail!("--write requires a file argument (cannot write to stdin)");
     }
 
-    let manager = ConfigManager::new()?;
-    let config_file = manager.load_or_default();
+    let (_manager, config_file) = load_config()?;
     let resolve_options = ResolveOptions {
         to: options.to.clone(),
         provider: options.provider.clone(),

@@ -295,8 +295,22 @@ impl ConfigManager {
         Ok(())
     }
 
-    pub fn load_or_default(&self) -> ConfigFile {
-        self.load().unwrap_or_default()
+    /// Loads the config file, returning defaults only if the file doesn't exist.
+    ///
+    /// Returns an error if the config file exists but cannot be parsed.
+    /// This prevents accidental overwrite of a malformed config file when saving.
+    pub fn load_or_default(&self) -> Result<ConfigFile> {
+        match fs::read_to_string(&self.config_path) {
+            Ok(contents) => {
+                toml::from_str(&contents).with_context(|| "Failed to parse config file")
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(ConfigFile::default()),
+            Err(e) => Err(anyhow::anyhow!(
+                "Failed to read config file: {}: {}",
+                self.config_path.display(),
+                e
+            )),
+        }
     }
 }
 
@@ -577,5 +591,77 @@ mod tests {
 
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("API key"));
+    }
+
+    #[test]
+    fn test_load_or_default_nonexistent_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = create_test_manager(&temp_dir);
+
+        // Should return default when file doesn't exist
+        let result = manager.load_or_default();
+        assert!(result.is_ok());
+        let config = result.unwrap();
+        assert!(config.providers.is_empty());
+    }
+
+    #[test]
+    fn test_load_or_default_valid_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = create_test_manager(&temp_dir);
+
+        // Create a valid config file
+        let config = create_test_config();
+        manager.save(&config).unwrap();
+
+        // Should load the valid config
+        let result = manager.load_or_default();
+        assert!(result.is_ok());
+        let loaded = result.unwrap();
+        assert_eq!(loaded.tl.provider, Some("ollama".to_string()));
+    }
+
+    #[test]
+    fn test_load_or_default_invalid_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = create_test_manager(&temp_dir);
+
+        // Create an invalid TOML file
+        std::fs::write(&manager.config_path, "invalid toml [[[").unwrap();
+
+        // Should return error for malformed config
+        let result = manager.load_or_default();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("parse"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_load_or_default_unreadable_file() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        let manager = create_test_manager(&temp_dir);
+
+        // Create a valid config file
+        std::fs::write(&manager.config_path, "[tl]\nprovider = \"test\"").unwrap();
+
+        // Make it unreadable (no read permissions)
+        let mut perms = std::fs::metadata(&manager.config_path)
+            .unwrap()
+            .permissions();
+        perms.set_mode(0o000);
+        std::fs::set_permissions(&manager.config_path, perms).unwrap();
+
+        // Should return error for unreadable file
+        let result = manager.load_or_default();
+        assert!(result.is_err());
+
+        // Restore permissions for cleanup
+        let mut perms = std::fs::metadata(&manager.config_path)
+            .unwrap()
+            .permissions();
+        perms.set_mode(0o644);
+        std::fs::set_permissions(&manager.config_path, perms).unwrap();
     }
 }

@@ -3,7 +3,8 @@
 use anyhow::{Result, bail};
 use inquire::{Select, Text};
 
-use crate::config::{ConfigFile, ConfigManager, TlConfig};
+use super::load_config;
+use crate::config::{ConfigFile, TlConfig};
 use crate::style::{PRESETS, sorted_custom_keys};
 use crate::translation::SUPPORTED_LANGUAGES;
 use crate::ui::{Style, handle_prompt_cancellation};
@@ -16,8 +17,7 @@ pub fn run_configure() -> Result<()> {
 }
 
 fn run_configure_inner() -> Result<()> {
-    let manager = ConfigManager::new()?;
-    let mut config = manager.load_or_default();
+    let (manager, mut config) = load_config()?;
 
     // Check if at least one provider is configured
     if config.providers.is_empty() {

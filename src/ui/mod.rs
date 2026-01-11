@@ -2,10 +2,10 @@ use anyhow::Result;
 use inquire::InquireError;
 
 mod spinner;
-mod style;
+mod theme;
 
 pub use spinner::Spinner;
-pub use style::Style;
+pub use theme::Style;
 
 /// Check if the inquire error is a user cancellation/interruption.
 const fn is_prompt_cancelled(err: &InquireError) -> bool {
