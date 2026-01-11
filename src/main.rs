@@ -42,6 +42,9 @@ async fn run() -> Result<()> {
             Some(StylesCommand::Add) => {
                 styles::add_style()?;
             }
+            Some(StylesCommand::Show { name }) => {
+                styles::show_style(&name)?;
+            }
             Some(StylesCommand::Edit { name }) => {
                 styles::edit_style(&name)?;
             }

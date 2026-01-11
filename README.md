@@ -90,6 +90,7 @@ Styles control the tone and manner of translations. Four preset styles are avail
 
 ```sh
 tl styles                           # list all styles (presets + custom)
+tl styles show <name>               # show style details (description + prompt)
 tl styles add                       # add a custom style interactively
 tl styles edit <name>               # edit a custom style
 tl styles remove <name>             # remove a custom style

@@ -98,6 +98,11 @@ pub enum ProvidersCommand {
 pub enum StylesCommand {
     /// Add a new custom style
     Add,
+    /// Show details of a style (description and prompt)
+    Show {
+        /// Style name to show
+        name: String,
+    },
     /// Edit an existing custom style
     Edit {
         /// Style name to edit

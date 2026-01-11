@@ -1,10 +1,10 @@
 //! Styles command handler for managing translation styles.
 
 use anyhow::{Result, bail};
-use inquire::{Confirm, Text};
+use inquire::{Confirm, Editor, Text};
 
 use crate::config::{ConfigManager, CustomStyle};
-use crate::style::{PRESETS, is_preset, sorted_custom_keys, validate_custom_key};
+use crate::style::{PRESETS, get_preset, is_preset, sorted_custom_keys, validate_custom_key};
 use crate::ui::{Style, handle_prompt_cancellation};
 
 /// Lists all available styles (presets and custom).
@@ -38,6 +38,48 @@ pub fn list_styles() -> Result<()> {
             );
         }
     }
+
+    Ok(())
+}
+
+/// Shows details of a style (description and prompt).
+pub fn show_style(name: &str) -> Result<()> {
+    // Check preset first
+    if let Some(preset) = get_preset(name) {
+        println!("{}", Style::header("Preset style"));
+        println!();
+        println!("  {}  {}", Style::label("Name:"), Style::value(preset.key));
+        println!(
+            "  {}  {}",
+            Style::label("Desc:"),
+            Style::secondary(preset.description)
+        );
+        println!();
+        println!("{}", Style::label("Prompt:"));
+        println!("{}", preset.prompt);
+        return Ok(());
+    }
+
+    // Check custom styles
+    let manager = ConfigManager::new()?;
+    let config = manager.load_or_default();
+
+    let custom = config
+        .styles
+        .get(name)
+        .ok_or_else(|| anyhow::anyhow!("Style '{name}' not found"))?;
+
+    println!("{}", Style::header("Custom style"));
+    println!();
+    println!("  {}  {}", Style::label("Name:"), Style::value(name));
+    println!(
+        "  {}  {}",
+        Style::label("Desc:"),
+        Style::secondary(&custom.description)
+    );
+    println!();
+    println!("{}", Style::label("Prompt:"));
+    println!("{}", custom.prompt);
 
     Ok(())
 }
@@ -77,14 +119,15 @@ fn add_style_inner() -> Result<()> {
         bail!("Description cannot be empty");
     }
 
-    // Get style prompt (instructions for LLM)
-    let prompt = Text::new("Prompt:")
-        .with_help_message(
-            "Instructions for the LLM (e.g., \"Use excessive emojis and overly familiar tone\")",
+    // Get style prompt (instructions for LLM) using editor
+    let prompt = Editor::new("Prompt (opens editor):")
+        .with_help_message("Instructions for the LLM. Save and close editor when done.")
+        .with_predefined_text(
+            "# Enter the prompt for the LLM below.\n# Lines starting with # are ignored.\n\n",
         )
         .prompt()?;
 
-    let prompt = prompt.trim().to_string();
+    let prompt = filter_comment_lines(&prompt);
 
     if prompt.is_empty() {
         bail!("Prompt cannot be empty");
@@ -108,6 +151,16 @@ fn add_style_inner() -> Result<()> {
     );
 
     Ok(())
+}
+
+/// Filters out comment lines (starting with #) and trims the result.
+fn filter_comment_lines(text: &str) -> String {
+    text.lines()
+        .filter(|line| !line.trim_start().starts_with('#'))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
 }
 
 /// Edits an existing custom style.
@@ -147,9 +200,10 @@ fn edit_style_inner(name: &str) -> Result<()> {
         bail!("Description cannot be empty");
     }
 
-    // Get new prompt
-    let prompt = Text::new("Prompt:")
-        .with_default(&current.prompt)
+    // Get new prompt using editor
+    let prompt = Editor::new("Prompt (opens editor):")
+        .with_help_message("Edit the prompt for the LLM. Save and close editor when done.")
+        .with_predefined_text(&current.prompt)
         .prompt()?;
 
     let prompt = prompt.trim().to_string();
