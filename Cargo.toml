@@ -36,6 +36,8 @@ owo-colors = "4"
 [dev-dependencies]
 tempfile = "3"
 serial_test = "3"
+assert_cmd = "2"
+predicates = "3"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
