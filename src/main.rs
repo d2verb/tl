@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 
-use tl_cli::cli::commands::{chat, providers, translate};
-use tl_cli::cli::{Args, Command};
+use tl_cli::cli::commands::{chat, configure, providers, translate};
+use tl_cli::cli::{Args, Command, ProvidersCommand};
 use tl_cli::translation::{print_languages, validate_language};
 use tl_cli::ui::Style;
 
@@ -21,8 +21,22 @@ async fn run() -> Result<()> {
         Some(Command::Languages) => {
             print_languages();
         }
-        Some(Command::Providers { provider }) => {
-            providers::print_providers(provider.as_deref())?;
+        Some(Command::Providers { command }) => match command {
+            None => {
+                providers::list_providers()?;
+            }
+            Some(ProvidersCommand::Add) => {
+                providers::add_provider()?;
+            }
+            Some(ProvidersCommand::Edit { name }) => {
+                providers::edit_provider(&name)?;
+            }
+            Some(ProvidersCommand::Remove { name }) => {
+                providers::remove_provider(&name)?;
+            }
+        },
+        Some(Command::Configure) => {
+            configure::run_configure()?;
         }
         Some(Command::Chat {
             to,

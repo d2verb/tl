@@ -40,10 +40,10 @@ pub struct Args {
 pub enum Command {
     /// List supported language codes
     Languages,
-    /// List configured providers and their models
+    /// Manage providers (list all if no subcommand given)
     Providers {
-        /// Show models for a specific provider
-        provider: Option<String>,
+        #[command(subcommand)]
+        command: Option<ProvidersCommand>,
     },
     /// Interactive chat mode for translation
     Chat {
@@ -58,5 +58,24 @@ pub enum Command {
         /// Model name
         #[arg(short = 'm', long)]
         model: Option<String>,
+    },
+    /// Configure default settings
+    Configure,
+}
+
+/// Subcommands for provider management.
+#[derive(Subcommand, Debug)]
+pub enum ProvidersCommand {
+    /// Add a new provider
+    Add,
+    /// Edit an existing provider
+    Edit {
+        /// Provider name to edit
+        name: String,
+    },
+    /// Remove a provider
+    Remove {
+        /// Provider name to remove
+        name: String,
     },
 }
