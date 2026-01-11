@@ -71,9 +71,9 @@ pub fn show_style(name: &str) -> Result<()> {
 
     println!("{}", Style::header("Custom style"));
     println!();
-    println!("  {}  {}", Style::label("Name:"), Style::value(name));
+    println!("{}  {}", Style::label("Name:"), Style::value(name));
     println!(
-        "  {}  {}",
+        "{}  {}",
         Style::label("Desc:"),
         Style::secondary(&custom.description)
     );
