@@ -61,8 +61,10 @@ mod tests {
     #[test]
     fn test_handle_prompt_cancellation_other_error() {
         let result = handle_prompt_cancellation(|| Err(anyhow::anyhow!("Some other error")));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Some other error"));
+        let Err(err) = result else {
+            panic!("expected an error");
+        };
+        assert!(err.to_string().contains("Some other error"));
     }
 
     #[test]
