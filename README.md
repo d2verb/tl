@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/d2verb/tl/actions/workflows/ci.yml/badge.svg)](https://github.com/d2verb/tl/actions/workflows/ci.yml)
 
-`tl` is a small CLI that streams translations coming from standard input or files through any OpenAI-compatible endpoint (local or remote). Configure multiple providers with their own endpoints, API keys, and models, then switch between them as needed.
+`tl` is a small CLI that streams translations through any OpenAI-compatible endpoint (local or remote). Configure multiple providers with their own endpoints, API keys, and models, then switch between them as needed.
 
 ## Install
 
@@ -18,7 +18,40 @@ cd tl
 cargo install --path .
 ```
 
-## Quick Usage
+## Getting Started
+
+### 1. Add a provider
+
+```sh
+tl providers add
+```
+
+Follow the prompts to configure your first provider. Example for local Ollama:
+
+```
+Provider name: ollama
+Endpoint URL: http://localhost:11434
+API key method: None (no auth required)
+Models: gemma3:12b, llama3.2
+```
+
+### 2. Set defaults
+
+```sh
+tl configure
+```
+
+Select your default provider, model, and target language.
+
+### 3. Translate
+
+```sh
+echo "Hello, world!" | tl
+```
+
+You should see the translation stream in real-time.
+
+## Usage
 
 ```sh
 tl ./notes.md                       # translate a file
@@ -30,11 +63,32 @@ tl --no-cache ./notes.md             # bypass cache
 tl -w ./notes.md                     # overwrite file with translation
 ```
 
-`tl` caches each translation (keyed on the input, language, model, endpoint, and prompt) so rerunning the same source is fast and cheap. Streaming responses keep your terminal responsive, and a spinner on stderr signals when work is in progress.
+Translations are cached (keyed on input, language, model, endpoint, and prompt) so rerunning the same source is fast and cheap.
 
-## Configuration
+## Managing Providers
 
-Settings live in `~/.config/tl/config.toml`.
+```sh
+tl providers                        # list all providers
+tl providers add                    # add a new provider interactively
+tl providers edit <name>            # edit an existing provider
+tl providers remove <name>          # remove a provider
+```
+
+## Chat Mode
+
+For interactive translation sessions:
+
+```sh
+tl chat                              # start with config defaults
+tl chat --to ja                      # override target language
+tl chat --provider openrouter        # use a specific provider
+```
+
+Type text and press Enter to translate. Use `/help` for commands, `/quit` to exit.
+
+## Configuration Reference
+
+Settings are stored in `~/.config/tl/config.toml`:
 
 ```toml
 [tl]
@@ -52,55 +106,18 @@ api_key_env = "OPENROUTER_API_KEY"
 models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o"]
 ```
 
-### Provider Configuration
+### Provider options
 
-Each provider has:
-- `endpoint` (required) – the OpenAI-compatible API endpoint
-- `api_key_env` (optional) – environment variable name containing the API key
-- `api_key` (optional) – API key stored directly in config (not recommended)
-- `models` (optional) – list of available models for this provider
+- `endpoint` (required) – OpenAI-compatible API endpoint
+- `api_key_env` (optional) – environment variable name for API key
+- `api_key` (optional) – API key in config (not recommended)
+- `models` (optional) – available models for this provider
 
-CLI options always supersede the config file.
-
-### Managing Providers
-
-```sh
-tl providers                        # list all providers
-tl providers add                    # add a new provider interactively
-tl providers edit <name>            # edit an existing provider
-tl providers remove <name>          # remove a provider
-```
-
-### Configuring Defaults
-
-Use `tl configure` to set default provider, model, and target language interactively:
-
-```sh
-tl configure
-```
-
-## Chat Mode
-
-For interactive translation sessions, use `tl chat`:
-
-```sh
-tl chat                              # start chat mode with config defaults
-tl chat --to ja                      # override target language
-tl chat --provider openrouter        # use a specific provider
-tl chat --model gpt-4o               # use a specific model
-```
-
-Type text and press Enter to translate. Translations stream in real-time.
-
-### Slash Commands
-
-- `/config` – show current configuration
-- `/help` – list available commands
-- `/quit` – exit chat mode
+CLI options always override config file values.
 
 ## Troubleshooting
 
-- Use `tl languages` to see the supported ISO 639-1 codes before passing `--to`.
-- Streaming is cancel-safe: pressing `Ctrl+C` while streaming aborts without polluting the cache.
-- No cache hits? Run with `--no-cache` to force a fresh request.
-- API key issues? Set the environment variable specified in `api_key_env` for your provider.
+- Run `tl languages` to see supported ISO 639-1 language codes.
+- Pressing `Ctrl+C` while streaming aborts without polluting the cache.
+- Use `--no-cache` to force a fresh API request.
+- API key issues? Ensure the environment variable specified in `api_key_env` is set.
