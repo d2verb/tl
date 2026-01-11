@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use inquire::{Confirm, Select, Text};
 
 use crate::config::{ConfigManager, ProviderConfig};
-use crate::ui::Style;
+use crate::ui::{Style, handle_prompt_cancellation};
 
 /// Reserved names that cannot be used as provider names.
 const RESERVED_NAMES: &[&str] = &["add", "edit", "remove", "list"];
@@ -56,6 +56,10 @@ pub fn list_providers() -> Result<()> {
 
 /// Interactively adds a new provider.
 pub fn add_provider() -> Result<()> {
+    handle_prompt_cancellation(add_provider_inner)
+}
+
+fn add_provider_inner() -> Result<()> {
     let manager = ConfigManager::new()?;
     let mut config = manager.load_or_default();
 
@@ -98,6 +102,10 @@ pub fn add_provider() -> Result<()> {
 
 /// Interactively edits an existing provider.
 pub fn edit_provider(name: &str) -> Result<()> {
+    handle_prompt_cancellation(|| edit_provider_inner(name))
+}
+
+fn edit_provider_inner(name: &str) -> Result<()> {
     let manager = ConfigManager::new()?;
     let mut config = manager.load_or_default();
 
@@ -147,6 +155,10 @@ pub fn edit_provider(name: &str) -> Result<()> {
 
 /// Removes a provider with confirmation.
 pub fn remove_provider(name: &str) -> Result<()> {
+    handle_prompt_cancellation(|| remove_provider_inner(name))
+}
+
+fn remove_provider_inner(name: &str) -> Result<()> {
     let manager = ConfigManager::new()?;
     let mut config = manager.load_or_default();
 

@@ -5,12 +5,16 @@ use inquire::{Select, Text};
 
 use crate::config::{ConfigFile, ConfigManager, TlConfig};
 use crate::translation::SUPPORTED_LANGUAGES;
-use crate::ui::Style;
+use crate::ui::{Style, handle_prompt_cancellation};
 
 /// Runs the configure command to edit default settings.
 ///
 /// Allows the user to interactively set the default provider, model, and target language.
 pub fn run_configure() -> Result<()> {
+    handle_prompt_cancellation(run_configure_inner)
+}
+
+fn run_configure_inner() -> Result<()> {
     let manager = ConfigManager::new()?;
     let mut config = manager.load_or_default();
 
@@ -156,10 +160,8 @@ fn select_target_language(default: Option<&str>) -> Result<String> {
         .prompt()?;
 
     // Extract code from "code - Name" format
-    let code = selection
-        .split(" - ")
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Invalid selection"))?;
+    // split() always returns at least one element, but we use unwrap_or as fallback
+    let code = selection.split(" - ").next().unwrap_or(&selection);
 
     Ok(code.to_string())
 }
