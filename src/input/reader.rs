@@ -32,7 +32,7 @@ impl InputReader {
         let size = metadata.len() as usize;
         if size > MAX_INPUT_SIZE {
             bail!(
-                "Error: Input size ({:.1} MB) exceeds maximum allowed size (1 MB).\n\n\
+                "Input size ({:.1} MB) exceeds maximum allowed size (1 MB).\n\n\
                  Consider splitting the file into smaller parts.",
                 size as f64 / 1024.0 / 1024.0
             );
@@ -60,7 +60,7 @@ impl InputReader {
 
             if buffer.len() > MAX_INPUT_SIZE {
                 bail!(
-                    "Error: Input size ({:.1} MB) exceeds maximum allowed size (1 MB).\n\n\
+                    "Input size ({:.1} MB) exceeds maximum allowed size (1 MB).\n\n\
                      Consider splitting the input into smaller parts.",
                     buffer.len() as f64 / 1024.0 / 1024.0
                 );

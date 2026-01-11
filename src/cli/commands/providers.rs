@@ -3,6 +3,7 @@
 use anyhow::Result;
 
 use crate::config::ConfigManager;
+use crate::ui::Style;
 
 /// Prints configured providers to stdout.
 ///
@@ -13,8 +14,11 @@ pub fn print_providers(specific_provider: Option<&str>) -> Result<()> {
     let config = manager.load_or_default();
 
     if config.providers.is_empty() {
-        println!("No providers configured.");
-        println!("Add providers to ~/.config/tl/config.toml");
+        println!("{}", Style::warning("No providers configured."));
+        println!(
+            "{}",
+            Style::hint("Add providers to ~/.config/tl/config.toml")
+        );
         return Ok(());
     }
 
@@ -25,24 +29,42 @@ pub fn print_providers(specific_provider: Option<&str>) -> Result<()> {
         if let Some(provider) = config.providers.get(provider_name) {
             let is_default = default_provider == Some(provider_name);
             println!(
-                "Provider: {}{}",
-                provider_name,
-                if is_default { " (default)" } else { "" }
+                "{} {}{}",
+                Style::label("Provider"),
+                Style::value(provider_name),
+                if is_default {
+                    format!(" {}", Style::default_marker())
+                } else {
+                    String::new()
+                }
             );
-            println!("  endpoint = {}", provider.endpoint);
+            println!(
+                "  {} {}",
+                Style::label("endpoint"),
+                Style::secondary(&provider.endpoint)
+            );
             if provider.api_key_env.is_some() || provider.api_key.is_some() {
                 let has_key = provider.get_api_key().is_some();
                 println!(
-                    "  api_key  = {}",
-                    if has_key { "(set)" } else { "(not set)" }
+                    "  {}  {}",
+                    Style::label("api_key"),
+                    if has_key {
+                        Style::success("(set)")
+                    } else {
+                        Style::warning("(not set)")
+                    }
                 );
             }
             if provider.models.is_empty() {
-                println!("  models   = (none configured)");
+                println!(
+                    "  {}   {}",
+                    Style::label("models"),
+                    Style::secondary("(none configured)")
+                );
             } else {
-                println!("  models:");
+                println!("  {}", Style::label("models"));
                 for model in &provider.models {
-                    println!("    - {model}");
+                    println!("    {} {}", Style::secondary("-"), Style::value(model));
                 }
             }
         } else {
@@ -50,13 +72,29 @@ pub fn print_providers(specific_provider: Option<&str>) -> Result<()> {
         }
     } else {
         // List all providers
-        println!("Configured providers:\n");
+        println!("{}", Style::header("Configured providers"));
         for (name, provider) in &config.providers {
             let is_default = default_provider == Some(name.as_str());
-            println!("  {}{}", name, if is_default { " (default)" } else { "" });
-            println!("    endpoint: {}", provider.endpoint);
+            println!(
+                "  {}{}",
+                Style::value(name),
+                if is_default {
+                    format!(" {}", Style::default_marker())
+                } else {
+                    String::new()
+                }
+            );
+            println!(
+                "    {}  {}",
+                Style::label("endpoint"),
+                Style::secondary(&provider.endpoint)
+            );
             if !provider.models.is_empty() {
-                println!("    models: {}", provider.models.join(", "));
+                println!(
+                    "    {}    {}",
+                    Style::label("models"),
+                    Style::secondary(provider.models.join(", "))
+                );
             }
         }
     }

@@ -50,7 +50,7 @@ pub struct TranslateOptions {
 pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     // Validate -w option requires a file
     if options.write && options.file.is_none() {
-        bail!("Error: --write requires a file argument (cannot write to stdin)");
+        bail!("--write requires a file argument (cannot write to stdin)");
     }
 
     let manager = ConfigManager::new()?;
@@ -65,7 +65,7 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
     let source_text = InputReader::read(options.file.as_deref())?;
 
     if source_text.is_empty() {
-        bail!("Error: Input is empty");
+        bail!("Input is empty");
     }
 
     let cache_manager = CacheManager::new()?;

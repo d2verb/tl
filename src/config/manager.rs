@@ -5,6 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::paths;
+use crate::ui::Style;
 
 /// Default settings in the `[tl]` section of config.toml.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -114,7 +115,7 @@ pub fn resolve_config(
         .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "Error: Missing required configuration: 'provider'\n\n\
+                "Missing required configuration: 'provider'\n\n\
                  Please provide it via:\n  \
                  - CLI option: tl --provider <name>\n  \
                  - Config file: ~/.config/tl/config.toml"
@@ -126,12 +127,12 @@ pub fn resolve_config(
         let available: Vec<_> = config_file.providers.keys().collect();
         if available.is_empty() {
             anyhow::anyhow!(
-                "Error: Provider '{provider_name}' not found\n\n\
+                "Provider '{provider_name}' not found\n\n\
                  No providers configured. Add providers to ~/.config/tl/config.toml"
             )
         } else {
             anyhow::anyhow!(
-                "Error: Provider '{provider_name}' not found\n\n\
+                "Provider '{provider_name}' not found\n\n\
                  Available providers:\n  \
                  - {}\n\n\
                  Add providers to ~/.config/tl/config.toml",
@@ -152,7 +153,7 @@ pub fn resolve_config(
         .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "Error: Missing required configuration: 'model'\n\n\
+                "Missing required configuration: 'model'\n\n\
                  Please provide it via:\n  \
                  - CLI option: tl --model <name>\n  \
                  - Config file: ~/.config/tl/config.toml"
@@ -162,9 +163,10 @@ pub fn resolve_config(
     // Warn if model is not in provider's models list
     if !provider_config.models.is_empty() && !provider_config.models.contains(&model) {
         eprintln!(
-            "Warning: Model '{}' is not in the configured models list for '{}'\n\
+            "{} Model '{}' is not in the configured models list for '{}'\n\
              Configured models: {}\n\
              Proceeding anyway...\n",
+            Style::warning("Warning:"),
             model,
             provider_name,
             provider_config.models.join(", ")
@@ -179,7 +181,7 @@ pub fn resolve_config(
         .cloned()
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "Error: Missing required configuration: 'to' (target language)\n\n\
+                "Missing required configuration: 'to' (target language)\n\n\
                  Please provide it via:\n  \
                  - CLI option: tl --to <lang>\n  \
                  - Config file: ~/.config/tl/config.toml"
@@ -193,7 +195,7 @@ pub fn resolve_config(
     if provider_config.requires_api_key() && api_key.is_none() {
         let env_var = provider_config.api_key_env.as_deref().unwrap_or("API_KEY");
         bail!(
-            "Error: Provider '{provider_name}' requires an API key\n\n\
+            "Provider '{provider_name}' requires an API key\n\n\
              Set the {env_var} environment variable:\n  \
              export {env_var}=\"your-api-key\"\n\n\
              Or set api_key in ~/.config/tl/config.toml"

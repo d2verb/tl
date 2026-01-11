@@ -1,34 +1,70 @@
+//! Chat mode UI components.
+
+use crate::ui::Style;
+
 use super::session::SessionConfig;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub fn print_header() {
-    println!("tl v{VERSION} - Interactive Translation Mode");
+    println!(
+        "{} {} - Interactive Translation Mode",
+        Style::header("tl"),
+        Style::version(format!("v{VERSION}"))
+    );
     println!();
 }
 
 pub fn print_goodbye() {
-    println!("Goodbye!");
+    println!("{}", Style::success("Goodbye!"));
 }
 
 pub fn print_config(config: &SessionConfig) {
-    println!("Current configuration:");
-    println!("  provider = {}", config.provider_name);
-    println!("  model    = {}", config.model);
-    println!("  to       = {}", config.to);
-    println!("  endpoint = {}", config.endpoint);
+    println!("{}", Style::header("Configuration"));
+    println!(
+        "  {}   {}",
+        Style::label("provider"),
+        Style::value(&config.provider_name)
+    );
+    println!(
+        "  {}      {}",
+        Style::label("model"),
+        Style::value(&config.model)
+    );
+    println!(
+        "  {}         {}",
+        Style::label("to"),
+        Style::value(&config.to)
+    );
+    println!(
+        "  {}   {}",
+        Style::label("endpoint"),
+        Style::secondary(&config.endpoint)
+    );
     println!();
 }
 
 pub fn print_help() {
-    println!("Available commands:");
-    println!("  /config  Show current configuration");
-    println!("  /help    Show this help");
-    println!("  /quit    Exit chat mode");
+    println!("{}", Style::header("Available commands"));
+    println!(
+        "  {}  {}",
+        Style::command("/config"),
+        Style::secondary("Show current configuration")
+    );
+    println!(
+        "  {}    {}",
+        Style::command("/help"),
+        Style::secondary("Show this help")
+    );
+    println!(
+        "  {}    {}",
+        Style::command("/quit"),
+        Style::secondary("Exit chat mode")
+    );
     println!();
 }
 
 pub fn print_error(message: &str) {
-    eprintln!("Error: {message}");
+    eprintln!("{} {message}", Style::error("Error:"));
     eprintln!();
 }

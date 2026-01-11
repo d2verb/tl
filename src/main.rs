@@ -4,9 +4,17 @@ use clap::Parser;
 use tl_cli::cli::commands::{chat, providers, translate};
 use tl_cli::cli::{Args, Command};
 use tl_cli::translation::{print_languages, validate_language};
+use tl_cli::ui::Style;
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{} {err}", Style::error("Error:"));
+        std::process::exit(1);
+    }
+}
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn run() -> Result<()> {
     let args = Args::parse();
 
     match args.command {

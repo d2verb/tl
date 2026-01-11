@@ -2,6 +2,8 @@
 
 use anyhow::Result;
 
+use crate::ui::Style;
+
 /// Supported language codes (ISO 639-1) and their names.
 pub const SUPPORTED_LANGUAGES: &[(&str, &str)] = &[
     ("af", "Afrikaans"),
@@ -85,9 +87,9 @@ pub const SUPPORTED_LANGUAGES: &[(&str, &str)] = &[
 
 /// Prints all supported language codes to stdout.
 pub fn print_languages() {
-    println!("Supported language codes (ISO 639-1):\n");
+    println!("{}", Style::header("Supported language codes (ISO 639-1)"));
     for (code, name) in SUPPORTED_LANGUAGES {
-        println!("  {code:4} - {name}");
+        println!("  {:5} {}", Style::code(code), Style::secondary(name));
     }
 }
 
@@ -101,7 +103,7 @@ pub fn validate_language(lang: &str) -> Result<()> {
         Ok(())
     } else {
         anyhow::bail!(
-            "Error: Invalid language code: '{lang}'\n\n\
+            "Invalid language code: '{lang}'\n\n\
              Valid language codes (ISO 639-1): ja, en, zh, ko, fr, de, es, ...\n\
              Run 'tl languages' to see all supported codes."
         )
