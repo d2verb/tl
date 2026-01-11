@@ -53,6 +53,9 @@ pub mod cli;
 /// Configuration file management and provider settings.
 pub mod config;
 
+/// File system utilities.
+pub mod fs;
+
 /// Input reading from files and stdin.
 pub mod input;
 
