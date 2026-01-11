@@ -64,11 +64,19 @@ CLI options always supersede the config file.
 
 ### Managing Providers
 
-Use `tl providers` to list configured providers:
-
 ```sh
 tl providers                        # list all providers
-tl providers ollama                 # show details for a specific provider
+tl providers add                    # add a new provider interactively
+tl providers edit <name>            # edit an existing provider
+tl providers remove <name>          # remove a provider
+```
+
+### Configuring Defaults
+
+Use `tl configure` to set default provider, model, and target language interactively:
+
+```sh
+tl configure
 ```
 
 ## Chat Mode
