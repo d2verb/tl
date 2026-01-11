@@ -207,3 +207,116 @@ impl TranslationClient {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_test_request() -> TranslationRequest {
+        TranslationRequest {
+            source_text: "Hello, world!".to_string(),
+            target_language: "ja".to_string(),
+            model: "gemma3:12b".to_string(),
+            endpoint: "http://localhost:11434".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_cache_key_is_consistent() {
+        let request = create_test_request();
+        let key1 = request.cache_key();
+        let key2 = request.cache_key();
+        assert_eq!(key1, key2);
+    }
+
+    #[test]
+    fn test_cache_key_is_hex_string() {
+        let request = create_test_request();
+        let key = request.cache_key();
+        // SHA-256 produces 64 hex characters
+        assert_eq!(key.len(), 64);
+        assert!(key.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_cache_key_differs_for_different_source_text() {
+        let request1 = create_test_request();
+        let mut request2 = create_test_request();
+        request2.source_text = "Different text".to_string();
+        assert_ne!(request1.cache_key(), request2.cache_key());
+    }
+
+    #[test]
+    fn test_cache_key_differs_for_different_target_language() {
+        let request1 = create_test_request();
+        let mut request2 = create_test_request();
+        request2.target_language = "en".to_string();
+        assert_ne!(request1.cache_key(), request2.cache_key());
+    }
+
+    #[test]
+    fn test_cache_key_differs_for_different_model() {
+        let request1 = create_test_request();
+        let mut request2 = create_test_request();
+        request2.model = "gpt-4o".to_string();
+        assert_ne!(request1.cache_key(), request2.cache_key());
+    }
+
+    #[test]
+    fn test_cache_key_differs_for_different_endpoint() {
+        let request1 = create_test_request();
+        let mut request2 = create_test_request();
+        request2.endpoint = "https://api.openai.com".to_string();
+        assert_ne!(request1.cache_key(), request2.cache_key());
+    }
+
+    #[test]
+    fn test_prompt_hash_is_consistent() {
+        let hash1 = TranslationRequest::prompt_hash();
+        let hash2 = TranslationRequest::prompt_hash();
+        assert_eq!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_prompt_hash_is_hex_string() {
+        let hash = TranslationRequest::prompt_hash();
+        // SHA-256 produces 64 hex characters
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_translation_client_new() {
+        let client = TranslationClient::new(
+            "http://localhost:11434".to_string(),
+            Some("test-api-key".to_string()),
+        );
+        assert_eq!(client.endpoint, "http://localhost:11434");
+        assert_eq!(client.api_key, Some("test-api-key".to_string()));
+    }
+
+    #[test]
+    fn test_translation_client_new_without_api_key() {
+        let client = TranslationClient::new("http://localhost:11434".to_string(), None);
+        assert_eq!(client.endpoint, "http://localhost:11434");
+        assert!(client.api_key.is_none());
+    }
+
+    #[test]
+    fn test_build_url_without_trailing_slash() {
+        let client = TranslationClient::new("http://localhost:11434".to_string(), None);
+        assert_eq!(
+            client.build_url(),
+            "http://localhost:11434/v1/chat/completions"
+        );
+    }
+
+    #[test]
+    fn test_build_url_with_trailing_slash() {
+        let client = TranslationClient::new("http://localhost:11434/".to_string(), None);
+        assert_eq!(
+            client.build_url(),
+            "http://localhost:11434/v1/chat/completions"
+        );
+    }
+}

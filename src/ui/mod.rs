@@ -35,3 +35,49 @@ where
         Err(e) => Err(e),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_prompt_cancellation_ok() {
+        let result = handle_prompt_cancellation(|| Ok(()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_prompt_cancellation_operation_canceled() {
+        let result = handle_prompt_cancellation(|| Err(InquireError::OperationCanceled.into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_prompt_cancellation_operation_interrupted() {
+        let result = handle_prompt_cancellation(|| Err(InquireError::OperationInterrupted.into()));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_handle_prompt_cancellation_other_error() {
+        let result = handle_prompt_cancellation(|| Err(anyhow::anyhow!("Some other error")));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Some other error"));
+    }
+
+    #[test]
+    fn test_is_prompt_cancelled_operation_canceled() {
+        assert!(is_prompt_cancelled(&InquireError::OperationCanceled));
+    }
+
+    #[test]
+    fn test_is_prompt_cancelled_operation_interrupted() {
+        assert!(is_prompt_cancelled(&InquireError::OperationInterrupted));
+    }
+
+    #[test]
+    fn test_is_prompt_cancelled_other_error() {
+        let err = InquireError::Custom("test".into());
+        assert!(!is_prompt_cancelled(&err));
+    }
+}
