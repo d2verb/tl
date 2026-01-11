@@ -52,8 +52,10 @@ fn home_dir() -> Result<PathBuf> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_config_dir_default() {
         // Clear XDG_CONFIG_HOME to test default behavior
         let original = std::env::var("XDG_CONFIG_HOME").ok();
@@ -69,6 +71,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_config_dir_xdg_override() {
         let original = std::env::var("XDG_CONFIG_HOME").ok();
         unsafe { std::env::set_var("XDG_CONFIG_HOME", "/custom/config") };
@@ -85,6 +88,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_cache_dir_default() {
         // Clear XDG_CACHE_HOME to test default behavior
         let original = std::env::var("XDG_CACHE_HOME").ok();
@@ -100,6 +104,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_cache_dir_xdg_override() {
         let original = std::env::var("XDG_CACHE_HOME").ok();
         unsafe { std::env::set_var("XDG_CACHE_HOME", "/custom/cache") };

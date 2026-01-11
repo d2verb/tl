@@ -22,6 +22,7 @@ use crate::translation::TranslationRequest;
 ///     target_language: "ja".to_string(),
 ///     model: "gpt-4".to_string(),
 ///     endpoint: "https://api.openai.com".to_string(),
+///     style: None,
 /// };
 ///
 /// // Check cache
@@ -157,6 +158,7 @@ mod tests {
             target_language: "ja".to_string(),
             model: "gpt-oss:20b".to_string(),
             endpoint: "http://localhost:11434".to_string(),
+            style: None,
         }
     }
 
@@ -192,6 +194,7 @@ mod tests {
             target_language: "ja".to_string(),
             model: "model1".to_string(),
             endpoint: "http://localhost:11434".to_string(),
+            style: None,
         };
 
         let request2 = TranslationRequest {
@@ -199,6 +202,7 @@ mod tests {
             target_language: "en".to_string(),
             model: "model1".to_string(),
             endpoint: "http://localhost:11434".to_string(),
+            style: None,
         };
 
         manager.put(&request1, "Translation 1").unwrap();
@@ -224,6 +228,7 @@ mod tests {
             target_language: "ja".to_string(),
             model: "model1".to_string(),
             endpoint: "http://localhost:11434".to_string(),
+            style: None,
         };
 
         let request2 = TranslationRequest {
@@ -231,6 +236,7 @@ mod tests {
             target_language: "ja".to_string(),
             model: "model1".to_string(),
             endpoint: "http://production:11434".to_string(),
+            style: None,
         };
 
         manager.put(&request1, "Local Translation").unwrap();

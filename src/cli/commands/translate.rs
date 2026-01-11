@@ -19,6 +19,8 @@ pub struct TranslateOptions {
     pub provider: Option<String>,
     /// Model name.
     pub model: Option<String>,
+    /// Translation style.
+    pub style: Option<String>,
     /// Whether to bypass the cache.
     pub no_cache: bool,
     /// Whether to overwrite the input file with the translation.
@@ -41,6 +43,7 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         to: options.to.clone(),
         provider: options.provider.clone(),
         model: options.model.clone(),
+        style: options.style.clone(),
     };
     let resolved = resolve_config(&resolve_options, &config_file)?;
 
@@ -59,6 +62,7 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         target_language: resolved.target_language,
         model: resolved.model,
         endpoint: resolved.endpoint.clone(),
+        style: resolved.style_prompt,
     };
 
     // Create client with remaining values (endpoint cloned, api_key moved)

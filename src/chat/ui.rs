@@ -37,6 +37,14 @@ pub fn print_config(config: &SessionConfig) {
         Style::value(&config.to)
     );
     println!(
+        "  {}      {}",
+        Style::label("style"),
+        config
+            .style_name
+            .as_deref()
+            .map_or_else(|| Style::secondary("(none)"), Style::value)
+    );
+    println!(
         "  {}   {}",
         Style::label("endpoint"),
         Style::secondary(&config.endpoint)
@@ -60,6 +68,33 @@ pub fn print_help() {
         "  {}    {}",
         Style::command("/quit"),
         Style::secondary("Exit chat mode")
+    );
+    println!(
+        "  {}     {}",
+        Style::command("/set"),
+        Style::secondary("Set option (style, to, model)")
+    );
+    println!();
+    println!("{}", Style::header("Set examples"));
+    println!(
+        "  {}  {}",
+        Style::command("/set style casual"),
+        Style::secondary("Use casual translation style")
+    );
+    println!(
+        "  {}         {}",
+        Style::command("/set to ja"),
+        Style::secondary("Set target language to Japanese")
+    );
+    println!(
+        "  {}  {}",
+        Style::command("/set model gpt-4o"),
+        Style::secondary("Switch to a different model")
+    );
+    println!(
+        "  {}      {}",
+        Style::command("/set style"),
+        Style::secondary("Clear style (no style)")
     );
     println!();
 }

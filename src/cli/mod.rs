@@ -6,4 +6,4 @@ pub mod args;
 /// Subcommand implementations.
 pub mod commands;
 
-pub use args::{Args, Command, ProvidersCommand};
+pub use args::{Args, Command, ProvidersCommand, StylesCommand};

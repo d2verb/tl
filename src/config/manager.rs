@@ -5,6 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::paths;
+use crate::style;
 use crate::ui::Style;
 
 /// Default settings in the `[tl]` section of config.toml.
@@ -16,6 +17,8 @@ pub struct TlConfig {
     pub model: Option<String>,
     /// Default target language (ISO 639-1 code).
     pub to: Option<String>,
+    /// Default translation style.
+    pub style: Option<String>,
 }
 
 /// Configuration for a translation provider.
@@ -54,6 +57,15 @@ impl ProviderConfig {
     }
 }
 
+/// A custom translation style defined by the user.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomStyle {
+    /// Short description displayed in lists.
+    pub description: String,
+    /// The actual prompt sent to the LLM.
+    pub prompt: String,
+}
+
 /// The complete configuration file structure.
 ///
 /// Corresponds to `~/.config/tl/config.toml`.
@@ -65,6 +77,9 @@ pub struct ConfigFile {
     /// Provider configurations keyed by name.
     #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
+    /// Custom translation styles keyed by name.
+    #[serde(default)]
+    pub styles: HashMap<String, CustomStyle>,
 }
 
 /// Resolved configuration after merging CLI arguments and config file.
@@ -80,6 +95,10 @@ pub struct ResolvedConfig {
     pub api_key: Option<String>,
     /// The target language code.
     pub target_language: String,
+    /// The style name (for display).
+    pub style_name: Option<String>,
+    /// The resolved translation style prompt (for LLM).
+    pub style_prompt: Option<String>,
 }
 
 /// Options for resolving configuration.
@@ -93,6 +112,8 @@ pub struct ResolveOptions {
     pub provider: Option<String>,
     /// Model name override.
     pub model: Option<String>,
+    /// Style name override.
+    pub style: Option<String>,
 }
 
 /// Resolves configuration by merging CLI options with config file settings.
@@ -202,12 +223,25 @@ pub fn resolve_config(
         );
     }
 
+    // Resolve style (optional)
+    let style_key = options.style.as_ref().or(config_file.tl.style.as_ref());
+
+    let (style_name, style_prompt) = if let Some(key) = style_key {
+        let resolved =
+            style::resolve_style(key, &config_file.styles).map_err(|e| anyhow::anyhow!("{e}"))?;
+        (Some(key.clone()), Some(resolved.prompt().to_string()))
+    } else {
+        (None, None)
+    };
+
     Ok(ResolvedConfig {
         provider_name,
         endpoint: provider_config.endpoint.clone(),
         model,
         api_key,
         target_language,
+        style_name,
+        style_prompt,
     })
 }
 
@@ -299,8 +333,10 @@ mod tests {
                 provider: Some("ollama".to_string()),
                 model: Some("gemma3:12b".to_string()),
                 to: Some("ja".to_string()),
+                style: None,
             },
             providers,
+            styles: HashMap::new(),
         };
 
         manager.save(&config).unwrap();
@@ -396,6 +432,7 @@ mod tests {
             to: Some("ja".to_string()),
             provider: Some("ollama".to_string()),
             model: Some("gemma3:12b".to_string()),
+            style: None,
         }
     }
 
@@ -425,8 +462,10 @@ mod tests {
                 provider: Some("ollama".to_string()),
                 model: Some("gemma3:12b".to_string()),
                 to: Some("ja".to_string()),
+                style: None,
             },
             providers,
+            styles: HashMap::new(),
         }
     }
 
@@ -476,6 +515,7 @@ mod tests {
             to: Some("ja".to_string()),
             provider: None,
             model: Some("model".to_string()),
+            style: None,
         };
         let config = ConfigFile::default();
 

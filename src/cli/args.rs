@@ -23,6 +23,10 @@ pub struct Args {
     #[arg(short = 'm', long)]
     pub model: Option<String>,
 
+    /// Translation style (e.g., casual, formal, literal, natural)
+    #[arg(short = 's', long)]
+    pub style: Option<String>,
+
     /// Disable cache
     #[arg(short = 'n', long)]
     pub no_cache: bool,
@@ -45,6 +49,11 @@ pub enum Command {
         #[command(subcommand)]
         command: Option<ProvidersCommand>,
     },
+    /// Manage translation styles (list all if no subcommand given)
+    Styles {
+        #[command(subcommand)]
+        command: Option<StylesCommand>,
+    },
     /// Interactive chat mode for translation
     Chat {
         /// Target language code (ISO 639-1, e.g., ja, en, zh)
@@ -58,6 +67,10 @@ pub enum Command {
         /// Model name
         #[arg(short = 'm', long)]
         model: Option<String>,
+
+        /// Translation style (e.g., casual, formal, literal, natural)
+        #[arg(short = 's', long)]
+        style: Option<String>,
     },
     /// Configure default settings
     Configure,
@@ -76,6 +89,23 @@ pub enum ProvidersCommand {
     /// Remove a provider
     Remove {
         /// Provider name to remove
+        name: String,
+    },
+}
+
+/// Subcommands for style management.
+#[derive(Subcommand, Debug)]
+pub enum StylesCommand {
+    /// Add a new custom style
+    Add,
+    /// Edit an existing custom style
+    Edit {
+        /// Style name to edit
+        name: String,
+    },
+    /// Remove a custom style
+    Remove {
+        /// Style name to remove
         name: String,
     },
 }

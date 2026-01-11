@@ -4,6 +4,7 @@ use anyhow::{Result, bail};
 use inquire::{Select, Text};
 
 use crate::config::{ConfigFile, ConfigManager, TlConfig};
+use crate::style::{PRESETS, sorted_custom_keys};
 use crate::translation::SUPPORTED_LANGUAGES;
 use crate::ui::{Style, handle_prompt_cancellation};
 
@@ -50,11 +51,16 @@ fn run_configure_inner() -> Result<()> {
     let default_to = config.tl.to.clone();
     let to = select_target_language(default_to.as_deref())?;
 
+    // Select default style (optional)
+    let default_style = config.tl.style.clone();
+    let style = select_style(&config, default_style.as_deref())?;
+
     // Update config
     config.tl = TlConfig {
         provider: Some(provider),
         model: Some(model),
         to: Some(to),
+        style,
     };
 
     // Save config
@@ -96,6 +102,15 @@ fn print_current_defaults(config: &ConfigFile) {
         config
             .tl
             .to
+            .as_deref()
+            .map_or_else(|| Style::secondary("(not set)"), Style::value)
+    );
+    println!(
+        "  {}     {}",
+        Style::label("style"),
+        config
+            .tl
+            .style
             .as_deref()
             .map_or_else(|| Style::secondary("(not set)"), Style::value)
     );
@@ -164,4 +179,52 @@ fn select_target_language(default: Option<&str>) -> Result<String> {
     let code = selection.split(" - ").next().unwrap_or(&selection);
 
     Ok(code.to_string())
+}
+
+fn select_style(config: &ConfigFile, default: Option<&str>) -> Result<Option<String>> {
+    // Build options: "(none)" + presets + custom styles
+    let mut options: Vec<String> = vec!["(none)".to_string()];
+
+    // Add presets
+    for preset in PRESETS {
+        options.push(format!("{} - {}", preset.key, preset.description));
+    }
+
+    // Add custom styles
+    let custom_keys = sorted_custom_keys(&config.styles);
+    for key in &custom_keys {
+        let desc = config
+            .styles
+            .get(*key)
+            .map_or("", |s| s.description.as_str());
+        options.push(format!("{key} - {desc}"));
+    }
+
+    // Find default index
+    let default_index = default
+        .and_then(|d| {
+            // Check presets
+            if let Some(idx) = PRESETS.iter().position(|p| p.key == d) {
+                return Some(idx + 1); // +1 for "(none)"
+            }
+            // Check custom styles
+            if let Some(idx) = custom_keys.iter().position(|k| *k == d) {
+                return Some(PRESETS.len() + 1 + idx);
+            }
+            None
+        })
+        .unwrap_or(0);
+
+    let selection = Select::new("Default style:", options)
+        .with_starting_cursor(default_index)
+        .prompt()?;
+
+    // Parse selection
+    if selection == "(none)" {
+        return Ok(None);
+    }
+
+    // Extract key from "key - description" format
+    let key = selection.split(" - ").next().unwrap_or(&selection);
+    Ok(Some(key.to_string()))
 }

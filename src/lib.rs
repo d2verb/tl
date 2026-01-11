@@ -59,6 +59,9 @@ pub mod fs;
 /// Input reading from files and stdin.
 pub mod input;
 
+/// Translation style management (presets and custom styles).
+pub mod style;
+
 /// XDG-style path utilities for configuration and cache.
 pub mod paths;
 

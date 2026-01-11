@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::pin::Pin;
 
-use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt};
+use super::prompt::{SYSTEM_PROMPT_TEMPLATE, build_system_prompt_with_style};
 use super::sse_parser::sse_to_text_stream;
 
 /// A request to translate text.
@@ -24,13 +24,15 @@ pub struct TranslationRequest {
     pub model: String,
     /// The API endpoint URL.
     pub endpoint: String,
+    /// The translation style prompt (if specified).
+    pub style: Option<String>,
 }
 
 impl TranslationRequest {
     /// Computes a unique cache key for this request.
     ///
     /// The key is a SHA-256 hash of the source text, target language,
-    /// model, endpoint, and prompt template hash.
+    /// model, endpoint, style, and prompt template hash.
     pub fn cache_key(&self) -> String {
         let prompt_hash = Self::prompt_hash();
 
@@ -39,7 +41,8 @@ impl TranslationRequest {
             "target_language": self.target_language,
             "model": self.model,
             "endpoint": self.endpoint,
-            "prompt_hash": prompt_hash
+            "prompt_hash": prompt_hash,
+            "style": self.style
         });
 
         let mut hasher = Sha256::new();
@@ -112,6 +115,7 @@ struct Message<'a> {
 ///     target_language: "ja".to_string(),
 ///     model: "gemma3:12b".to_string(),
 ///     endpoint: "http://localhost:11434".to_string(),
+///     style: None,
 /// };
 ///
 /// let mut stream = client.translate_stream(&request).await?;
@@ -150,6 +154,7 @@ impl TranslationClient {
                 &request.model,
                 &request.target_language,
                 &request.source_text,
+                request.style.as_deref(),
             )
             .await?;
 
@@ -162,9 +167,10 @@ impl TranslationClient {
         model: &str,
         target_language: &str,
         source_text: &str,
+        style: Option<&str>,
     ) -> Result<impl Stream<Item = reqwest::Result<Bytes>> + Send + 'static> {
         let url = self.build_url();
-        let system_prompt = build_system_prompt(target_language);
+        let system_prompt = build_system_prompt_with_style(target_language, style);
         let chat_request =
             ChatCompletionRequest::for_translation(model, &system_prompt, source_text);
 
@@ -218,6 +224,7 @@ mod tests {
             target_language: "ja".to_string(),
             model: "gemma3:12b".to_string(),
             endpoint: "http://localhost:11434".to_string(),
+            style: None,
         }
     }
 

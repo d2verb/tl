@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
 
-use tl_cli::cli::commands::{chat, configure, providers, translate};
-use tl_cli::cli::{Args, Command, ProvidersCommand};
+use tl_cli::cli::commands::{chat, configure, providers, styles, translate};
+use tl_cli::cli::{Args, Command, ProvidersCommand, StylesCommand};
 use tl_cli::translation::{print_languages, validate_language};
 use tl_cli::ui::Style;
 
@@ -35,6 +35,20 @@ async fn run() -> Result<()> {
                 providers::remove_provider(&name)?;
             }
         },
+        Some(Command::Styles { command }) => match command {
+            None => {
+                styles::list_styles()?;
+            }
+            Some(StylesCommand::Add) => {
+                styles::add_style()?;
+            }
+            Some(StylesCommand::Edit { name }) => {
+                styles::edit_style(&name)?;
+            }
+            Some(StylesCommand::Remove { name }) => {
+                styles::remove_style(&name)?;
+            }
+        },
         Some(Command::Configure) => {
             configure::run_configure()?;
         }
@@ -42,6 +56,7 @@ async fn run() -> Result<()> {
             to,
             provider,
             model,
+            style,
         }) => {
             if let Some(ref lang) = to {
                 validate_language(lang)?;
@@ -51,6 +66,7 @@ async fn run() -> Result<()> {
                 to,
                 provider,
                 model,
+                style,
             };
             chat::run_chat(options).await?;
         }
@@ -64,6 +80,7 @@ async fn run() -> Result<()> {
                 to: args.to,
                 provider: args.provider,
                 model: args.model,
+                style: args.style,
                 no_cache: args.no_cache,
                 write: args.write,
             };

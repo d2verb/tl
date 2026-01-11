@@ -5,6 +5,7 @@ const SLASH_COMMANDS: &[(&str, &str)] = &[
     ("/config", "Show current configuration"),
     ("/help", "Show available commands"),
     ("/quit", "Exit chat mode"),
+    ("/set", "Set option (style, to, model)"),
 ];
 
 /// Slash command autocompleter
@@ -43,6 +44,7 @@ pub enum SlashCommand {
     Config,
     Help,
     Quit,
+    Set { key: String, value: Option<String> },
     Unknown(String),
 }
 
@@ -73,6 +75,11 @@ fn parse_slash_command(cmd: &str) -> Input {
         Some("config") => Input::Command(SlashCommand::Config),
         Some("help") => Input::Command(SlashCommand::Help),
         Some("quit" | "exit" | "q") => Input::Command(SlashCommand::Quit),
+        Some("set") => {
+            let key = parts.get(1).map(|s| (*s).to_string()).unwrap_or_default();
+            let value = parts.get(2).map(|s| (*s).to_string());
+            Input::Command(SlashCommand::Set { key, value })
+        }
         _ => Input::Command(SlashCommand::Unknown(parts.join(" "))),
     }
 }
@@ -136,6 +143,74 @@ mod tests {
         }
     }
 
+    // /set command tests
+
+    #[test]
+    fn test_parse_set_style_with_value() {
+        match parse_input("/set style casual") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "style");
+                assert_eq!(value, Some("casual".to_string()));
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_set_style_without_value() {
+        match parse_input("/set style") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "style");
+                assert_eq!(value, None);
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_set_to() {
+        match parse_input("/set to ja") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "to");
+                assert_eq!(value, Some("ja".to_string()));
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_set_model() {
+        match parse_input("/set model gpt-4o") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "model");
+                assert_eq!(value, Some("gpt-4o".to_string()));
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_set_without_key() {
+        match parse_input("/set") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "");
+                assert_eq!(value, None);
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
+    #[test]
+    fn test_parse_set_with_extra_whitespace() {
+        match parse_input("/set   style   casual") {
+            Input::Command(SlashCommand::Set { key, value }) => {
+                assert_eq!(key, "style");
+                assert_eq!(value, Some("casual".to_string()));
+            }
+            _ => panic!("Expected Input::Command(SlashCommand::Set)"),
+        }
+    }
+
     // SlashCommandCompleter tests
 
     #[test]
@@ -149,7 +224,7 @@ mod tests {
     fn test_completer_suggestions_for_slash() {
         let mut completer = SlashCommandCompleter;
         let suggestions = completer.get_suggestions("/").unwrap();
-        assert_eq!(suggestions.len(), 3); // /config, /help, /quit
+        assert_eq!(suggestions.len(), 4); // /config, /help, /quit, /set
     }
 
     #[test]

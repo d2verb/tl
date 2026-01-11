@@ -59,6 +59,7 @@ cat report.md | tl                   # translate stdin
 tl --to ja ./notes.md                # override target language
 tl --provider openrouter ./notes.md  # use a specific provider
 tl --model gpt-4o ./notes.md         # use a specific model
+tl --style casual ./notes.md         # use a translation style
 tl --no-cache ./notes.md             # bypass cache
 tl -w ./notes.md                     # overwrite file with translation
 ```
@@ -74,6 +75,31 @@ tl providers edit <name>            # edit an existing provider
 tl providers remove <name>          # remove a provider
 ```
 
+## Translation Styles
+
+Styles control the tone and manner of translations. Four preset styles are available:
+
+| Style | Description |
+|-------|-------------|
+| `casual` | Casual, conversational tone |
+| `formal` | Formal, business-appropriate |
+| `literal` | Literal, close to source |
+| `natural` | Natural, idiomatic expressions |
+
+```sh
+tl styles                           # list all styles (presets + custom)
+tl styles add                       # add a custom style interactively
+tl styles edit <name>               # edit a custom style
+tl styles remove <name>             # remove a custom style
+```
+
+Use styles with the `--style` option:
+
+```sh
+tl --style formal ./email.md
+tl --style casual ./chat.txt
+```
+
 ## Chat Mode
 
 For interactive translation sessions:
@@ -84,7 +110,16 @@ tl chat --to ja                      # override target language
 tl chat --provider openrouter        # use a specific provider
 ```
 
-Type text and press Enter to translate. Use `/help` for commands, `/quit` to exit.
+Type text and press Enter to translate. Available commands:
+
+| Command | Description |
+|---------|-------------|
+| `/help` | Show available commands |
+| `/config` | Show current configuration |
+| `/set style <name>` | Set translation style (or clear with `/set style`) |
+| `/set to <lang>` | Change target language |
+| `/set model <name>` | Change model |
+| `/quit` | Exit chat mode |
 
 ## Configuration Reference
 
@@ -95,6 +130,7 @@ Settings are stored in `~/.config/tl/config.toml`:
 provider = "ollama"
 model = "gemma3:12b"
 to = "ja"
+style = "casual"                     # optional default style
 
 [providers.ollama]
 endpoint = "http://localhost:11434"
@@ -104,6 +140,14 @@ models = ["gemma3:12b", "llama3.2"]
 endpoint = "https://openrouter.ai/api"
 api_key_env = "OPENROUTER_API_KEY"
 models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o"]
+
+[styles.ojisan]
+description = "Middle-aged man texting style"
+prompt = "Translate with excessive emoji, overly familiar tone, and random punctuation."
+
+[styles.keigo]
+description = "Polite Japanese honorifics"
+prompt = "Translate using polite Japanese with appropriate keigo (honorific language)."
 ```
 
 ### Provider options
@@ -112,6 +156,11 @@ models = ["anthropic/claude-3.5-sonnet", "openai/gpt-4o"]
 - `api_key_env` (optional) – environment variable name for API key
 - `api_key` (optional) – API key in config (not recommended)
 - `models` (optional) – available models for this provider
+
+### Custom style options
+
+- `description` (required) – short description shown in `tl styles` list
+- `prompt` (required) – instruction appended to the system prompt for the LLM
 
 CLI options always override config file values.
 

@@ -13,6 +13,8 @@ pub struct ChatOptions {
     pub provider: Option<String>,
     /// Model name.
     pub model: Option<String>,
+    /// Translation style.
+    pub style: Option<String>,
 }
 
 /// Runs the interactive chat mode.
@@ -26,6 +28,7 @@ pub async fn run_chat(options: ChatOptions) -> Result<()> {
         to: options.to,
         provider: options.provider,
         model: options.model,
+        style: options.style,
     };
 
     let resolved = resolve_config(&resolve_options, &config_file)?;
@@ -36,6 +39,9 @@ pub async fn run_chat(options: ChatOptions) -> Result<()> {
         resolved.model,
         resolved.api_key,
         resolved.target_language,
+        resolved.style_name,
+        resolved.style_prompt,
+        config_file.styles.clone(),
     );
 
     let mut session = ChatSession::new(session_config);
