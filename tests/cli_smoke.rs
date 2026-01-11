@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! CLI smoke tests to verify basic command functionality.
 //!
 //! These tests ensure that the CLI binary starts correctly and

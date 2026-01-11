@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Config priority contract tests.
 //!
 //! These tests verify that CLI options take priority over config file settings.
