@@ -37,4 +37,7 @@ cargo llvm-cov
 
 - **Documentation Search**: Prioritize using the `context7` MCP tool for all technical documentation and API specification searches. Always fetch the latest information before proceeding with implementation.
 - **Code Search & Analysis**: Prioritize using the `serena` MCP tool for deep code understanding, semantic searches, and dependency analysis across the project.
-- **Complex Tasks & Troubleshooting**: Use the `codex` MCP tool for architectural design consultations or if a bug fix attempt fails 3 or more times.
+- **Advanced Consultation & Troubleshooting**: Prioritize using the `codex` MCP tool for the following scenarios:
+  - Architectural design discussions and system modeling.
+  - Comprehensive code reviews for critical features or complex logic.
+  - Bug fixes that have failed 3 or more times.
