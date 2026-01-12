@@ -60,6 +60,10 @@ TEMPLATE=$(cat "$TEMPLATE_FILE")
 NOTES_FILE=$(mktemp)
 trap 'rm -f "$NOTES_FILE"' EXIT
 
+# Get existing release notes (cargo-dist generates install instructions)
+echo "Fetching existing release notes..."
+EXISTING_NOTES=$(gh release view "$VERSION" --json body --jq '.body')
+
 # Generate release notes using Claude Code
 echo "Generating release notes with Claude Code..."
 PROMPT="$TEMPLATE
@@ -67,7 +71,16 @@ PROMPT="$TEMPLATE
 Git log:
 $GIT_LOG"
 
-claude --print "$PROMPT" > "$NOTES_FILE"
+GENERATED_NOTES=$(claude --print "$PROMPT")
+
+# Combine: generated notes first, then existing notes
+{
+    echo "$GENERATED_NOTES"
+    echo ""
+    echo "---"
+    echo ""
+    echo "$EXISTING_NOTES"
+} > "$NOTES_FILE"
 
 # Open in editor for review
 EDITOR="${EDITOR:-vi}"
