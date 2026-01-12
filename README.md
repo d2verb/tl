@@ -8,11 +8,25 @@
 
 ## Install
 
+### Using cargo (recommended)
+
 ```sh
 cargo install tl-cli
 ```
 
-Or build from source:
+### Using installer scripts
+
+**macOS/Linux:**
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/d2verb/tl/releases/latest/download/tl-cli-installer.sh | sh
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://github.com/d2verb/tl/releases/latest/download/tl-cli-installer.ps1 | iex
+```
+
+### From source
 
 ```sh
 git clone https://github.com/d2verb/tl.git
