@@ -9,6 +9,13 @@ rules:
 
   # cargo-dist uses matrix expansion for cross-platform builds
   # These are safe because the values come from dist's own plan output
+  # Line numbers may change when cargo-dist is updated
   template-injection:
     ignore:
-      - release.yml
+      - release.yml:79    # github.ref_name in dist plan command
+      - release.yml:130   # matrix.install_dist.run
+      - release.yml:140   # matrix.packages_install
+      - release.yml:144   # needs.plan.outputs.tag-flag, matrix.dist_args
+      - release.yml:197   # needs.plan.outputs.tag-flag
+      - release.yml:273   # needs.plan.outputs.tag-flag
+      - release.yml:304   # needs.plan.outputs.tag
