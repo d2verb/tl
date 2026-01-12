@@ -18,9 +18,3 @@ rules:
   template-injection:
     ignore:
       - release.yml
-
-  # We use CARGO_REGISTRY_TOKEN instead of trusted publishing
-  # Trusted publishing requires additional crates.io configuration
-  use-trusted-publishing:
-    ignore:
-      - release.yml

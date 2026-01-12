@@ -211,23 +211,29 @@ jobs:
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
 
-  # Publish to crates.io
+  # Publish to crates.io using Trusted Publishing
   publish-crates:
     needs:
       - plan
       - build-global-artifacts
     if: ${{ needs.plan.outputs.publishing == 'true' }}
     runs-on: "ubuntu-22.04"
-    env:
-      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Authenticate with crates.io
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1
       - name: Publish to crates.io
         run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
 
   # Determines if we should publish/announce
   host:
