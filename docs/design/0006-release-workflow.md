@@ -93,26 +93,29 @@ The following have been validated for this project:
 [profile.dist]
 inherits = "release"
 lto = "thin"
+```
 
-# cargo-dist configuration (single crate, not workspace)
-[package.metadata.dist]
-cargo-dist-version = "0.27.0"
+**dist-workspace.toml (cargo-dist configuration):**
+
+```toml
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.30.3"
 ci = "github"
-targets = [
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-  "x86_64-apple-darwin",
-  "aarch64-apple-darwin",
-  "x86_64-pc-windows-msvc",
-]
 installers = ["shell", "powershell"]
-pr-run-mode = "skip"  # Don't run dist on PRs
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+install-path = "CARGO_HOME"
+install-updater = false
+pr-run-mode = "skip"
+allow-dirty = ["ci"]  # Allow custom workflow modifications
 ```
 
 **Notes:**
-- Uses `[package.metadata.dist]` because this is a single crate (not a workspace)
+- cargo-dist 0.30+ uses `dist-workspace.toml` instead of `[package.metadata.dist]` in Cargo.toml
 - The `cargo-dist-version` field pins the version used in CI, ensuring reproducible builds
-- Actual installer filenames will be confirmed via `dist plan` during implementation
+- `allow-dirty = ["ci"]` allows custom modifications to the generated workflow (e.g., publish-crates job)
 
 **GitHub Secrets required:**
 
@@ -304,10 +307,10 @@ Keep it concise and user-focused. Omit internal refactoring details.
         ```bash
         # Linux/macOS (review script before running, or verify checksum)
         curl --proto '=https' --tlsv1.2 -LsSf \
-          https://github.com/d2verb/tl/releases/latest/download/tl-installer.sh | sh
+          https://github.com/d2verb/tl/releases/latest/download/tl-cli-installer.sh | sh
 
         # Windows (PowerShell)
-        irm https://github.com/d2verb/tl/releases/latest/download/tl-installer.ps1 | iex
+        irm https://github.com/d2verb/tl/releases/latest/download/tl-cli-installer.ps1 | iex
         ```
 
 *   **Success Metrics:**
