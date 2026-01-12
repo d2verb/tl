@@ -77,8 +77,6 @@ GENERATED_NOTES=$(claude --print "$PROMPT")
 {
     echo "$GENERATED_NOTES"
     echo ""
-    echo "---"
-    echo ""
     echo "$EXISTING_NOTES"
 } > "$NOTES_FILE"
 
