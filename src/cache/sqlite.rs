@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use rusqlite::Connection;
-use std::path::PathBuf;
+use std::path::Path;
+use std::sync::Mutex;
 
 use crate::paths;
 use crate::translation::TranslationRequest;
@@ -9,6 +10,10 @@ use crate::translation::TranslationRequest;
 ///
 /// The cache stores translations keyed by source text, target language,
 /// model, endpoint, and prompt hash to avoid redundant API calls.
+///
+/// The connection is held in a `Mutex` for thread safety and reused across
+/// all cache operations to avoid the overhead of opening a new connection
+/// for each operation.
 ///
 /// # Example
 ///
@@ -31,7 +36,7 @@ use crate::translation::TranslationRequest;
 /// }
 /// ```
 pub struct CacheManager {
-    db_path: PathBuf,
+    conn: Mutex<Connection>,
 }
 
 impl CacheManager {
@@ -47,7 +52,19 @@ impl CacheManager {
         })?;
 
         let db_path = cache_dir.join("translations.db");
-        let manager = Self { db_path };
+        Self::with_path(&db_path)
+    }
+
+    /// Creates a new cache manager with a specific database path.
+    ///
+    /// This is useful for testing with a custom database location.
+    fn with_path(db_path: &Path) -> Result<Self> {
+        let conn = Connection::open(db_path)
+            .with_context(|| format!("Failed to open cache database: {}", db_path.display()))?;
+
+        let manager = Self {
+            conn: Mutex::new(conn),
+        };
 
         manager.init_db()?;
 
@@ -55,7 +72,10 @@ impl CacheManager {
     }
 
     fn init_db(&self) -> Result<()> {
-        let conn = self.connect()?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire database lock: {e}"))?;
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS translations (
@@ -80,12 +100,8 @@ impl CacheManager {
         )
         .context("Failed to create index")?;
 
+        drop(conn);
         Ok(())
-    }
-
-    fn connect(&self) -> Result<Connection> {
-        Connection::open(&self.db_path)
-            .with_context(|| format!("Failed to open cache database: {}", self.db_path.display()))
     }
 
     /// Retrieves a cached translation if available.
@@ -94,12 +110,16 @@ impl CacheManager {
     /// Updates the `accessed_at` timestamp on cache hit.
     pub fn get(&self, request: &TranslationRequest) -> Result<Option<String>> {
         let cache_key = request.cache_key();
-        let conn = self.connect()?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire database lock: {e}"))?;
 
-        let mut stmt =
-            conn.prepare("SELECT translated_text FROM translations WHERE cache_key = ?1")?;
-
-        let result: Option<String> = stmt.query_row([&cache_key], |row| row.get(0)).ok();
+        let result: Option<String> = {
+            let mut stmt =
+                conn.prepare("SELECT translated_text FROM translations WHERE cache_key = ?1")?;
+            stmt.query_row([&cache_key], |row| row.get(0)).ok()
+        };
 
         if result.is_some() {
             conn.execute(
@@ -108,6 +128,7 @@ impl CacheManager {
             )?;
         }
 
+        drop(conn);
         Ok(result)
     }
 
@@ -117,7 +138,10 @@ impl CacheManager {
     pub fn put(&self, request: &TranslationRequest, translated_text: &str) -> Result<()> {
         let cache_key = request.cache_key();
         let prompt_hash = TranslationRequest::prompt_hash();
-        let conn = self.connect()?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Failed to acquire database lock: {e}"))?;
 
         conn.execute(
             "INSERT OR REPLACE INTO translations
@@ -135,6 +159,7 @@ impl CacheManager {
         )
         .context("Failed to insert translation into cache")?;
 
+        drop(conn);
         Ok(())
     }
 }
@@ -147,9 +172,7 @@ mod tests {
 
     fn create_test_manager(temp_dir: &TempDir) -> CacheManager {
         let db_path = temp_dir.path().join("translations.db");
-        let manager = CacheManager { db_path };
-        manager.init_db().unwrap();
-        manager
+        CacheManager::with_path(&db_path).unwrap()
     }
 
     fn create_test_request() -> TranslationRequest {
