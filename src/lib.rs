@@ -59,11 +59,14 @@ pub mod fs;
 /// Input reading from files and stdin.
 pub mod input;
 
-/// Translation style management (presets and custom styles).
-pub mod style;
+/// Global output configuration (quiet mode, colors, stderr/stdout routing).
+pub mod output;
 
 /// XDG-style path utilities for configuration and cache.
 pub mod paths;
+
+/// Translation style management (presets and custom styles).
+pub mod style;
 
 /// Translation client for OpenAI-compatible APIs.
 pub mod translation;

@@ -8,6 +8,7 @@ use std::io::{self, Write};
 use super::command::{Input, SlashCommand, SlashCommandCompleter, parse_input};
 use super::ui;
 use crate::config::{CustomStyle, ResolvedConfig};
+use crate::output;
 use crate::style;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::{Spinner, Style};
@@ -207,7 +208,12 @@ impl ChatSession {
             style: self.config.resolved.style_prompt.clone(),
         };
 
-        let spinner = Spinner::new("Translating...");
+        // Only show spinner in non-quiet mode
+        let spinner = if output::is_quiet() {
+            None
+        } else {
+            Some(Spinner::new("Translating..."))
+        };
 
         let mut stream = self.client.translate_stream(&request).await?;
         let mut first_chunk = true;
@@ -216,7 +222,9 @@ impl ChatSession {
             let chunk = chunk_result?;
 
             if first_chunk {
-                spinner.stop();
+                if let Some(ref s) = spinner {
+                    s.stop();
+                }
                 first_chunk = false;
             }
 
@@ -224,8 +232,8 @@ impl ChatSession {
             io::stdout().flush()?;
         }
 
-        if first_chunk {
-            spinner.stop();
+        if first_chunk && let Some(ref s) = spinner {
+            s.stop();
         }
 
         println!();

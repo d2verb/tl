@@ -7,6 +7,7 @@ use clap::{Parser, Subcommand};
 #[command(name = "tl")]
 #[command(about = "AI-powered translation CLI tool")]
 #[command(version)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct Args {
     /// File to translate (reads from stdin if not provided)
     pub file: Option<String>,
@@ -34,6 +35,14 @@ pub struct Args {
     /// Overwrite the input file with the translated content
     #[arg(short = 'w', long)]
     pub write: bool,
+
+    /// Suppress non-essential output (only show translation and errors)
+    #[arg(short = 'q', long, global = true)]
+    pub quiet: bool,
+
+    /// Disable colored output (also respects `NO_COLOR` env var)
+    #[arg(long, global = true)]
+    pub no_color: bool,
 
     #[command(subcommand)]
     pub command: Option<Command>,

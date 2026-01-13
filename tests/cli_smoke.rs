@@ -107,3 +107,58 @@ fn test_styles_help() {
         .stdout(predicate::str::contains("edit"))
         .stdout(predicate::str::contains("remove"));
 }
+
+#[test]
+fn test_quiet_flag_available() {
+    tl().arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--quiet"))
+        .stdout(predicate::str::contains("-q"));
+}
+
+#[test]
+fn test_no_color_flag_available() {
+    tl().arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--no-color"))
+        .stdout(predicate::str::contains("NO_COLOR"));
+}
+
+#[test]
+fn test_quiet_flag_works() {
+    // Quiet flag should not cause errors
+    tl().args(["--quiet", "providers"]).assert().success();
+}
+
+#[test]
+fn test_no_color_flag_works() {
+    // No-color flag should not cause errors
+    tl().args(["--no-color", "providers"]).assert().success();
+}
+
+#[test]
+fn test_global_flags_with_subcommand() {
+    // Global flags should work with subcommands
+    tl().args(["--quiet", "--no-color", "languages"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_exit_code_invalid_language() {
+    // Invalid language should return exit code 64 (USAGE - sysexits.h)
+    tl().args(["--to", "invalid_xyz"])
+        .write_stdin("test")
+        .assert()
+        .code(exitcode::USAGE);
+}
+
+#[test]
+fn test_exit_code_file_not_found() {
+    // File not found should return exit code 66 (NOINPUT - sysexits.h)
+    tl().arg("/nonexistent/path/to/file.txt")
+        .assert()
+        .code(exitcode::NOINPUT);
+}

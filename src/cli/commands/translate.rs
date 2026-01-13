@@ -7,6 +7,7 @@ use crate::cache::CacheManager;
 use crate::config::{ResolveOptions, resolve_config};
 use crate::fs::atomic_write;
 use crate::input::InputReader;
+use crate::output;
 use crate::translation::{TranslationClient, TranslationRequest};
 use crate::ui::Spinner;
 
@@ -82,19 +83,24 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         return Ok(());
     }
 
-    let spinner_msg = if options.write {
-        format!(
-            "Translating {}...",
-            options.file.as_deref().unwrap_or("file")
-        )
+    // Only show spinner in non-quiet mode
+    let spinner = if output::is_quiet() {
+        None
     } else {
-        "Translating...".to_string()
+        let msg = if options.write {
+            format!(
+                "Translating {}...",
+                options.file.as_deref().unwrap_or("file")
+            )
+        } else {
+            "Translating...".to_string()
+        };
+        Some(Spinner::new(&msg))
     };
-    let spinner = Spinner::new(&spinner_msg);
 
     let mut stream = client.translate_stream(&request).await?;
     let mut full_response = String::new();
-    let mut spinner_active = true;
+    let mut spinner_active = spinner.is_some();
 
     while let Some(chunk_result) = stream.next().await {
         let chunk = chunk_result?;
@@ -102,7 +108,9 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         // When streaming to stdout, stop spinner on first chunk to show output
         // When writing to file, keep spinner until completion
         if spinner_active && !options.write {
-            spinner.stop();
+            if let Some(ref s) = spinner {
+                s.stop();
+            }
             spinner_active = false;
         }
 
@@ -113,8 +121,8 @@ pub async fn run_translate(options: TranslateOptions) -> Result<()> {
         full_response.push_str(&chunk);
     }
 
-    if spinner_active {
-        spinner.stop();
+    if spinner_active && let Some(ref s) = spinner {
+        s.stop();
     }
 
     if !options.write && !full_response.is_empty() {
