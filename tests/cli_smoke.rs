@@ -6,10 +6,41 @@
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::io::Write;
 
 #[allow(deprecated)]
 fn tl() -> Command {
     Command::cargo_bin("tl").unwrap()
+}
+
+/// Create a command with a temporary config directory containing a minimal config.
+/// This is needed for tests that require config resolution to succeed.
+#[allow(deprecated)]
+fn tl_with_config() -> (Command, tempfile::TempDir) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let config_dir = temp_dir.path().join("tl");
+    std::fs::create_dir_all(&config_dir).unwrap();
+
+    let config_path = config_dir.join("config.toml");
+    let mut file = std::fs::File::create(&config_path).unwrap();
+    writeln!(
+        file,
+        r#"
+[tl]
+provider = "test"
+model = "test-model"
+to = "ja"
+
+[providers.test]
+endpoint = "http://localhost:11434"
+models = ["test-model"]
+"#
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("tl").unwrap();
+    cmd.env("XDG_CONFIG_HOME", temp_dir.path());
+    (cmd, temp_dir)
 }
 
 #[test]
@@ -158,7 +189,9 @@ fn test_exit_code_invalid_language() {
 #[test]
 fn test_exit_code_file_not_found() {
     // File not found should return exit code 66 (NOINPUT - sysexits.h)
-    tl().arg("/nonexistent/path/to/file.txt")
+    // Need a valid config so that config resolution doesn't fail first
+    let (mut cmd, _temp_dir) = tl_with_config();
+    cmd.arg("/nonexistent/path/to/file.txt")
         .assert()
         .code(exitcode::NOINPUT);
 }
